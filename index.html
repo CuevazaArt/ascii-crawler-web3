@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASCII Crawler - Web3 Roguelike Prototype</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="crt-overlay"></div>
+    <div class="scanlines"></div>
+
+    <div class="app-container">
+        <!-- Encabezado / Header -->
+        <header class="app-header">
+            <div class="logo">
+                <i class="fa-solid fa-dungeon neon-text"></i>
+                <span class="retro-title neon-text">ASCII CRAWLER</span>
+                <span class="badge web3-badge">WEB3 EDITION</span>
+            </div>
+            
+            <div class="wallet-bar">
+                <div class="wallet-info" id="wallet-info">
+                    <span class="status-indicator disconnected"></span>
+                    <span class="wallet-address">Wallet Desconectada</span>
+                </div>
+                <button class="btn btn-primary" id="btn-connect">
+                    <i class="fa-solid fa-wallet"></i> Conectar Wallet
+                </button>
+            </div>
+        </header>
+
+        <!-- Contenedor Principal -->
+        <main class="main-content">
+            <!-- Columna Izquierda: Panel de Juego -->
+            <section class="game-panel">
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="terminal-title">MAZMORRA - NIVEL <span id="lbl-level">1</span></div>
+                        <div class="fps-counter">60 FPS</div>
+                    </div>
+                    
+                    <div class="terminal-screen" id="terminal-screen">
+                        <!-- El mapa de juego se inyectará aquí -->
+                        <div class="start-screen-prompt" id="start-prompt">
+                            <p class="blink text-primary">CONECTA TU WALLET E INICIA UN RUN</p>
+                            <p class="subtext">Cada run cuesta 10 $ROUGE y otorga recompensas por cofres y enemigos.</p>
+                            <div class="controls-guide">
+                                <h3>CONTROLES</h3>
+                                <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> o Flechas: Moverse</p>
+                                <p><kbd>Espacio</kbd>: Interactuar (Cofres / Escaleras)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-success" id="btn-start-run" disabled>
+                        <i class="fa-solid fa-play"></i> Iniciar Run (10 $ROUGE)
+                    </button>
+                    <button class="btn btn-warning" id="btn-claim-exit" disabled>
+                        <i class="fa-solid fa-right-from-bracket"></i> Retirarse y Salvar Héroe
+                    </button>
+                    <button class="btn btn-danger" id="btn-session-keys" disabled>
+                        <i class="fa-solid fa-key"></i> Activar Session Keys
+                    </button>
+                </div>
+            </section>
+
+            <!-- Columna Derecha: Stats y Blockchain -->
+            <aside class="sidebar-panel">
+                <!-- Panel de Estadísticas del Personaje -->
+                <div class="card stats-card">
+                    <h2 class="card-title"><i class="fa-solid fa-user-shield text-primary"></i> ESTADO DEL HÉROE</h2>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Héroe NFT:</span>
+                            <span class="stat-value text-secondary" id="val-hero-nft">Ninguno</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Clase:</span>
+                            <span class="stat-value text-success" id="val-hero-class">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Salud (HP):</span>
+                            <div class="hp-bar-container">
+                                <div class="hp-bar" id="hp-bar" style="width: 0%"></div>
+                                <span class="hp-text" id="val-hp">0/100</span>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Puntuación:</span>
+                            <span class="stat-value text-warning" id="val-score">0</span>
+                        </div>
+                    </div>
+                    <div class="inventory-section">
+                        <h3>EQUIPAMIENTO NFT (ERC-1155)</h3>
+                        <div class="inventory-slots" id="inventory-slots">
+                            <div class="slot empty" title="Espada"><i class="fa-solid fa-sword"></i></div>
+                            <div class="slot empty" title="Armadura"><i class="fa-solid fa-shirt"></i></div>
+                            <div class="slot empty" title="Anillo"><i class="fa-solid fa-ring"></i></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Finanzas de la Cuenta (Tokens) -->
+                <div class="card finance-card">
+                    <h2 class="card-title"><i class="fa-solid fa-coins text-warning"></i> BILLETERA DE TOKENS</h2>
+                    <div class="token-balances">
+                        <div class="balance-item">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z'/></svg>" alt="Token ROUGE" class="token-logo">
+                            <div class="balance-details">
+                                <span class="token-symbol">$ROUGE</span>
+                                <span class="token-amount" id="val-rouge-balance">0.00</span>
+                            </div>
+                        </div>
+                        <div class="session-keys-status" id="session-key-badge">
+                            <i class="fa-solid fa-shield-halved"></i> Session Keys Inactivas
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de Logs de Blockchain y Criptografía -->
+                <div class="card logs-card">
+                    <h2 class="card-title">
+                        <i class="fa-solid fa-cubes text-secondary"></i> WEB3 LEDGER LOGS 
+                        <span class="active-network">Arbitrum Nova (Sim)</span>
+                    </h2>
+                    <div class="logs-container" id="logs-container">
+                        <div class="log-entry system">Listo para conectarse al nodo Web3.</div>
+                    </div>
+                </div>
+            </aside>
+        </main>
+        
+        <!-- Pie de página -->
+        <footer class="app-footer">
+            <p>ASCII Crawler © 2026 - Diseñado con propósitos demostrativos de Web3 Gamification.</p>
+        </footer>
+    </div>
+
+    <!-- Modales / Overlays -->
+    <!-- Modal GameOver / Permadeath -->
+    <div class="modal-overlay" id="gameover-modal">
+        <div class="modal-content text-center">
+            <h1 class="neon-text text-danger font-retro blink">GAME OVER</h1>
+            <div class="permadeath-avatar">
+                <i class="fa-solid fa-skull-crossbones text-danger"></i>
+                <div class="burn-animation" id="burn-anim"></div>
+            </div>
+            <h3 class="text-danger">¡PERMADEATH ACTIVADA!</h3>
+            <p>Tu héroe NFT <strong id="lbl-burned-hero">#0</strong> ha sido **QUEMADO** del contrato inteligente.</p>
+            <p class="subtext">Todas sus estadísticas y su token ID han sido destruidos en la blockchain.</p>
+            <div class="score-summary">
+                <p>Puntuación Final: <span id="lbl-final-score" class="text-warning">0</span></p>
+                <p>Nivel Alcanzado: <span id="lbl-final-level" class="text-success">0</span></p>
+            </div>
+            <button class="btn btn-danger" id="btn-close-gameover">Cerrar Sesión de Run</button>
+        </div>
+    </div>
+
+    <!-- Scripts de la Aplicación -->
+    <script src="blockchain.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
