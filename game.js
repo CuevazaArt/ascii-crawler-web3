@@ -1,7 +1,7 @@
 /**
  * ASCII Roguelike Game Engine (game.js)
- * Maneja la lógica de exploración de cuadrícula, combate por turnos, inteligencia artificial
- * básica de enemigos y sincronización con el simulador Web3 de blockchain.
+ * Handles grid exploration, turn-based inputs, simple monster AIs,
+ * combat collisions, and syncs with the Web3 blockchain simulator.
  */
 
 class GameEngine {
@@ -18,20 +18,20 @@ class GameEngine {
             attack: 15
         };
 
-        // Dimensiones del mapa
+        // Map dimensions
         this.rows = 11;
         this.cols = 35;
         this.map = [];
         this.monsters = [];
         
-        // Elementos DOM
+        // DOM Elements
         this.screenEl = document.getElementById('terminal-screen');
         this.lblLevel = document.getElementById('lbl-level');
         this.valHp = document.getElementById('val-hp');
         this.hpBar = document.getElementById('hp-bar');
         this.valScore = document.getElementById('val-score');
 
-        // Registrar instancia global
+        // Global instance registration
         window.gameEngine = this;
         this.setupKeyboardInput();
     }
@@ -42,53 +42,53 @@ class GameEngine {
         this.score = 0;
         this.playerClass = playerClass;
         
-        // Ajustar estadísticas según clase
+        // Adjust starting stats based on Hero class
         this.playerStats.maxHp = 100;
-        if (playerClass === "Guerrero") {
+        if (playerClass === "Warrior") {
             this.playerStats.hp = 120;
             this.playerStats.maxHp = 120;
             this.playerStats.attack = 18;
-        } else if (playerClass === "Mago") {
+        } else if (playerClass === "Mage") {
             this.playerStats.hp = 80;
             this.playerStats.maxHp = 80;
             this.playerStats.attack = 22;
-        } else { // Pícaro
+        } else { // Rogue
             this.playerStats.hp = 100;
             this.playerStats.maxHp = 100;
             this.playerStats.attack = 15;
         }
 
-        // Generar mapa del Nivel 1
+        // Generate starting level map
         this.generateLevelMap();
         this.updateUI();
-        window.web3Simulator.log("¡Partida activa! Explora la mazmorra usando W/A/S/D o Flechas.", "system");
+        window.web3Simulator.log("Active run! Explore the dungeon using W/A/S/D or Arrow keys.", "system");
     }
 
     stopGame() {
         this.isActive = false;
         this.screenEl.innerHTML = `
             <div class="start-screen-prompt" id="start-prompt">
-                <p class="blink text-primary">RUN COMPLETADO O RETIRADO</p>
-                <p class="subtext">Vuelve a iniciar un run para explorar una nueva mazmorra.</p>
+                <p class="blink text-primary">RUN COMPLETED OR RETREATED</p>
+                <p class="subtext">Start a new run to explore a fresh dungeon layout.</p>
                 <div class="controls-guide">
-                    <h3>CONTROLES</h3>
-                    <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> o Flechas: Moverse</p>
-                    <p><kbd>Espacio</kbd>: Interactuar</p>
+                    <h3>CONTROLS</h3>
+                    <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move</p>
+                    <p><kbd>Space</kbd>: Skip turn / Wait</p>
                 </div>
             </div>
         `;
     }
 
-    // Generador de mapas
+    // Map generator
     generateLevelMap() {
         this.map = [];
         this.monsters = [];
 
-        // Generación de un diseño clásico de mazmorra (2 habitaciones conectadas por un pasillo)
+        // Simple dungeon layout (2 rooms connected by a corridor)
         for (let r = 0; r < this.rows; r++) {
             this.map[r] = [];
             for (let c = 0; c < this.cols; c++) {
-                // Bordes externos como muros
+                // Outermost boundaries are walls
                 if (r === 0 || r === this.rows - 1 || c === 0 || c === this.cols - 1) {
                     this.map[r][c] = '#';
                 } else {
@@ -97,51 +97,50 @@ class GameEngine {
             }
         }
 
-        // Diseñar Habitación 1 (Izquierda)
+        // Design Room 1 (Left Room)
         const rm1 = { r1: 1, r2: 5, c1: 1, c2: 15 };
         this.drawRoom(rm1);
 
-        // Diseñar Habitación 2 (Derecha)
+        // Design Room 2 (Right Room)
         const rm2 = { r1: 5, r2: 9, c1: 18, c2: 33 };
         this.drawRoom(rm2);
 
-        // Pasillo de conexión vertical/horizontal
+        // Connection corridors (vertical & horizontal)
         this.drawCorridor(3, 15, 3, 22);
         this.drawCorridor(3, 22, 6, 22);
         this.drawCorridor(6, 22, 6, 18);
 
-        // Colocar Puertas
+        // Draw doors
         this.map[3][15] = '+';
         this.map[6][18] = '+';
 
-        // Posición inicial del jugador en Habitación 1
+        // Set starting player coordinates in Room 1
         this.playerStats.x = 4;
         this.playerStats.y = 3;
 
-        // Escaleras al siguiente nivel en Habitación 2
+        // Exit stairs in Room 2
         this.map[8][30] = '>';
 
-        // Cofres
+        // Chests placement
         this.map[2][12] = 'C';
         if (this.level > 1) {
-            this.map[7][20] = 'C'; // Cofre extra en niveles avanzados
+            this.map[7][20] = 'C'; // Extra loot on higher floors
         }
 
-        // Trampas ocultas (^)
+        // Traps placement (^)
         this.map[3][22] = '^'; 
         if (this.level > 1) {
             this.map[6][25] = '^';
         }
 
-        // Enemigos
+        // Spawn monsters
         if (this.level === 1) {
-            // Un monstruo común en el pasillo y otro en la sala 2
-            this.spawnMonster(3, 10, "M", 35, 10); // Tipo M, HP 35, daño 10
+            this.spawnMonster(3, 10, "M", 35, 10); // Common Monster: 35 HP, 10 Attack
             this.spawnMonster(7, 26, "M", 35, 10);
         } else {
-            // Nivel 2 o superior incluye un Troll (T) más fuerte
+            // Level 2+ introduces a stronger Troll (T)
             this.spawnMonster(3, 10, "M", 35, 10);
-            this.spawnMonster(7, 26, "T", 70, 18); // Tipo T (Troll), HP 70, daño 18
+            this.spawnMonster(7, 26, "T", 70, 18); // Troll: 70 HP, 18 Attack
         }
     }
 
@@ -151,7 +150,7 @@ class GameEngine {
                 this.map[r][c] = '.';
             }
         }
-        // Colocar muros en los bordes de la habitación (si no hay bordes externos de mapa)
+        // Place walls around room edges (if not overlapping boundary walls)
         for (let r = rm.r1 - 1; r <= rm.r2 + 1; r++) {
             for (let c = rm.c1 - 1; c <= rm.c2 + 1; c++) {
                 if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) {
@@ -186,20 +185,20 @@ class GameEngine {
         });
     }
 
-    // Renderizar a texto HTML coloreado
+    // Render 2D grid to colored HTML template strings
     renderMap() {
         let asciiHTML = '<div class="ascii-grid">';
         
         for (let r = 0; r < this.rows; r++) {
             let rowHTML = '';
             for (let c = 0; c < this.cols; c++) {
-                // Verificar si hay jugador
+                // Render player '@'
                 if (r === this.playerStats.y && c === this.playerStats.x) {
                     rowHTML += '<span class="tile-player">@</span>';
                     continue;
                 }
 
-                // Verificar si hay monstruos
+                // Render active monsters
                 const monster = this.monsters.find(m => m.r === r && m.c === c);
                 if (monster) {
                     const mClass = monster.type === 'T' ? 'tile-troll' : 'tile-monster';
@@ -216,11 +215,11 @@ class GameEngine {
                     case '+': spanClass = 'tile-door'; break;
                     case '>': spanClass = 'tile-stairs'; break;
                     case 'C': spanClass = 'tile-chest'; break;
-                    case '^': spanClass = 'tile-floor'; break; // Trampas ocultas se ven como suelo
+                    case '^': spanClass = 'tile-floor'; break; // Hidden traps render as floor tiles
                     default: spanClass = 'tile-floor';
                 }
 
-                // Si la trampa fue activada, la mostramos
+                // If trap is triggered, we show it
                 if (char === '^' && this.map[r][c] === '^' && this.isTrapDiscovered(r, c)) {
                     rowHTML += '<span class="tile-trap">^</span>';
                 } else {
@@ -235,8 +234,7 @@ class GameEngine {
     }
 
     isTrapDiscovered(r, c) {
-        // En este prototipo rápido, las trampas activadas se descubren permanentemente
-        return this.map[r][c] === 'X'; // Marcamos trampa pisada con 'X'
+        return this.map[r][c] === 'X'; // Marked as triggered/stepped 'X'
     }
 
     setupKeyboardInput() {
@@ -255,11 +253,11 @@ class GameEngine {
                 case 'A': dx = -1; break;
                 case 'ARROWRIGHT':
                 case 'D': dx = 1; break;
-                case ' ': // Espacio para saltar turno
+                case ' ': // Space key skips turn (wait)
                     this.processTurn();
                     return;
                 default:
-                    return; // Ignorar otras teclas
+                    return; // Ignore other inputs
             }
 
             e.preventDefault();
@@ -271,13 +269,13 @@ class GameEngine {
         const nextX = this.playerStats.x + dx;
         const nextY = this.playerStats.y + dy;
 
-        // Comprobar colisión de mapa
+        // Wall collisions
         const char = this.map[nextY][nextX];
         if (char === '#') {
-            return; // Bloqueado por muro
+            return;
         }
 
-        // Comprobar colisión con monstruos
+        // Combat triggers on monster tile overlap
         const monsterIndex = this.monsters.findIndex(m => m.r === nextY && m.c === nextX);
         if (monsterIndex !== -1) {
             this.fight(monsterIndex);
@@ -285,33 +283,32 @@ class GameEngine {
             return;
         }
 
-        // Mover jugador
+        // Perform move coordinates change
         this.playerStats.x = nextX;
         this.playerStats.y = nextY;
 
-        // Registrar movimiento en el log simulado de la blockchain
+        // Register move transaction to ledger simulation log
         window.web3Simulator.registerMoveTransaction(nextX, nextY);
 
-        // Procesar interacciones con casillas
+        // Process special tile landing events
         if (char === 'C') {
             this.score += 50;
-            this.map[nextY][nextX] = '.'; // Remover cofre del mapa
+            this.map[nextY][nextX] = '.'; // Remove chest from map grid
             this.renderMap();
-            window.web3Simulator.log("¡Has abierto un cofre de oro!", "event");
+            window.web3Simulator.log("You opened a golden chest!", "event");
             window.web3Simulator.openChestTransaction();
         } else if (char === '^') {
-            // Activar trampa
             const trapDamage = 15;
             this.playerStats.hp = Math.max(0, this.playerStats.hp - trapDamage);
-            this.map[nextY][nextX] = 'X'; // Revelar trampa pisada
-            window.web3Simulator.log(`¡Alerta! Activaste una trampa de flechas. Perdiste ${trapDamage} HP.`, "alert");
+            this.map[nextY][nextX] = 'X'; // Reveal triggered trap
+            window.web3Simulator.log(`Alert! You triggered an arrow trap. Lost ${trapDamage} HP.`, "alert");
             this.checkPlayerDeath();
         } else if (char === '>') {
-            // Descender de nivel
+            // Descend floor stairs
             this.level++;
             this.score += 200;
             window.web3Simulator.descendLevelTransaction(this.level);
-            window.web3Simulator.log(`Descendiendo al Nivel ${this.level} de la mazmorra...`, "system");
+            window.web3Simulator.log(`Descending to Floor ${this.level} of the dungeon...`, "system");
             this.generateLevelMap();
         }
 
@@ -320,22 +317,23 @@ class GameEngine {
 
     fight(monsterIndex) {
         const m = this.monsters[monsterIndex];
+        const mName = m.type === 'T' ? 'Troll' : 'Monster';
         
-        // El jugador ataca
+        // Player attacks
         m.hp -= this.playerStats.attack;
-        window.web3Simulator.log(`Atacas al ${m.type === 'T' ? 'Troll' : 'Monstruo'} por ${this.playerStats.attack} de daño.`, "system");
+        window.web3Simulator.log(`You attack the ${mName} for ${this.playerStats.attack} damage.`, "system");
 
         if (m.hp <= 0) {
-            window.web3Simulator.log(`¡Has derrotado al ${m.type === 'T' ? 'Troll' : 'Monstruo'}!`, "event");
+            window.web3Simulator.log(`You defeated the ${mName}!`, "event");
             this.score += m.type === 'T' ? 150 : 80;
             this.monsters.splice(monsterIndex, 1);
-            window.web3Simulator.resolveCombatTransaction(m.type === 'T' ? 'Troll' : 'Monstruo', true, 0);
+            window.web3Simulator.resolveCombatTransaction(mName, true, 0);
         } else {
-            // Contraataque inmediato del monstruo
+            // Immediate counterattack
             const mDamage = m.attack;
             this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-            window.web3Simulator.log(`El ${m.type === 'T' ? 'Troll' : 'Monstruo'} contraataca y te inflige ${mDamage} de daño.`, "alert");
-            window.web3Simulator.resolveCombatTransaction(m.type === 'T' ? 'Troll' : 'Monstruo', false, mDamage);
+            window.web3Simulator.log(`The ${mName} counterattacks and deals you ${mDamage} damage.`, "alert");
+            window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
             this.checkPlayerDeath();
         }
     }
@@ -343,11 +341,12 @@ class GameEngine {
     processTurn() {
         if (!this.isActive) return;
 
-        // IA Básica de monstruos (se mueven 1 paso hacia el jugador si están a una distancia menor de 6 casillas)
+        // Basic Monster AI: moves 1 tile closer if within 6 grid spaces
         this.monsters.forEach((m, idx) => {
             const dist = Math.abs(m.r - this.playerStats.y) + Math.abs(m.c - this.playerStats.x);
+            const mName = m.type === 'T' ? 'Troll' : 'Monster';
+
             if (dist < 6 && dist > 1) {
-                // Determinar dirección de movimiento hacia el jugador
                 let dr = 0;
                 let dc = 0;
 
@@ -357,7 +356,6 @@ class GameEngine {
                 if (m.c < this.playerStats.x) dc = 1;
                 else if (m.c > this.playerStats.x) dc = -1;
 
-                // Intentar moverse preferentemente en diagonal o elegir la mejor arista libre
                 const nextR = m.r + dr;
                 const nextC = m.c + dc;
 
@@ -367,11 +365,11 @@ class GameEngine {
                     m.c = nextC;
                 }
             } else if (dist === 1) {
-                // Si está adyacente, ataca al jugador en su propio turno
+                // Perform attack on player if standing adjacent on their turn
                 const mDamage = m.attack;
                 this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-                window.web3Simulator.log(`El ${m.type === 'T' ? 'Troll' : 'Monstruo'} te ataca por ${mDamage} de daño en su turno.`, "alert");
-                window.web3Simulator.resolveCombatTransaction(m.type === 'T' ? 'Troll' : 'Monstruo', false, mDamage);
+                window.web3Simulator.log(`The ${mName} attacks you for ${mDamage} damage on its turn.`, "alert");
+                window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
                 this.checkPlayerDeath();
             }
         });
@@ -398,5 +396,5 @@ class GameEngine {
     }
 }
 
-// Inicializar motor de juego
+// Instantiate the game engine globally
 new GameEngine();

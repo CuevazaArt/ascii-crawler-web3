@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 /**
- * @dev Interfaces mínimas para la interacción con los tokens de héroes (ERC-721)
- * y equipamiento (ERC-1155) de forma segura.
+ * @dev Minimum interfaces for interacting with Hero NFTs (ERC-721)
+ * and Equipment NFTs (ERC-1155) securely.
  */
 interface IHeroNFT {
     function mint(address to, uint256 classId) external returns (uint256);
@@ -23,19 +23,19 @@ interface IRougeToken {
 
 /**
  * @title RoguelikeGame
- * @notice Contrato inteligente principal que gestiona el estado del juego, cobros, recompensas y permadeath.
+ * @notice Main smart contract managing game state, entry fees, rewards, and permadeath.
  */
 contract RoguelikeGame {
     
-    // Direcciones de contratos del ecosistema
+    // Ecosystem contract addresses
     IRougeToken public immutable rougeToken;
     IHeroNFT public immutable heroNFT;
     IEquipmentNFT public immutable equipmentNFT;
     
-    // Configuración del juego
-    uint256 public entryFee = 10 * 10**18;      // Tarifa de entrada: 10 $ROUGE
-    uint256 public chestReward = 5 * 10**18;     // Recompensa de cofre: 5 $ROUGE
-    uint256 public monsterReward = 2 * 10**18;   // Recompensa de monstruo: 2 $ROUGE
+    // Game configurations
+    uint256 public entryFee = 10 * 10**18;      // Entry fee: 10 $ROUGE
+    uint256 public chestReward = 5 * 10**18;     // Chest reward: 5 $ROUGE
+    uint256 public monsterReward = 2 * 10**18;   // Monster defeat reward: 2 $ROUGE
     
     struct GameState {
         uint256 heroTokenId;
@@ -43,16 +43,16 @@ contract RoguelikeGame {
         uint256 hp;
         uint256 score;
         bool isActive;
-        bytes32 mapHash; // Hash de la semilla del mapa generado proceduralmente
+        bytes32 mapHash; // Hash of the procedurally generated map seed
     }
     
-    // Mapeo de dirección del jugador a su estado de juego activo
+    // Mapping from player address to active game state
     mapping(address => GameState) public playerSessions;
     
-    // Historial de puntuaciones máximas
+    // High score leaderboards
     mapping(address => uint256) public highScores;
     
-    // Eventos
+    // Events
     event RunStarted(address indexed player, uint256 heroTokenId, bytes32 mapHash);
     event PlayerMoved(address indexed player, int256 newX, int256 newY, bool pathVerifiedByZK);
     event LootAcquired(address indexed player, string lootType, uint256 tokenReward);
@@ -71,18 +71,18 @@ contract RoguelikeGame {
     }
     
     /**
-     * @notice Inicia una nueva partida (Run) cobrando la tarifa de entrada.
-     * @param heroTokenId El ID del héroe NFT (ERC-721) que posee el jugador.
-     * @param seed Semilla proporcionada por Chainlink VRF para la generación procedural.
+     * @notice Starts a new game session (Run) by charging the entry fee.
+     * @param heroTokenId The ERC-721 token ID of the player's hero.
+     * @param seed Random seed from Chainlink VRF for procedural level generation.
      */
     function startRun(uint256 heroTokenId, uint256 seed) external {
-        require(!playerSessions[msg.sender].isActive, "Ya tienes una partida activa");
-        require(heroNFT.ownerOf(heroTokenId) == msg.sender, "No eres el propietario de este Heroe NFT");
+        require(!playerSessions[msg.sender].isActive, "You already have an active game run");
+        require(heroNFT.ownerOf(heroTokenId) == msg.sender, "You are not the owner of this Hero NFT");
         
-        // Cobrar la tarifa de entrada en tokens $ROUGE
-        require(rougeToken.transferFrom(msg.sender, address(this), entryFee), "Fallo el pago de la tarifa de entrada");
+        // Charge entry fee in $ROUGE tokens
+        require(rougeToken.transferFrom(msg.sender, address(this), entryFee), "Entry fee payment failed");
         
-        // Inicializar el estado de la partida
+        // Initialize game session state
         bytes32 mapHash = keccak256(abi.encodePacked(msg.sender, seed, block.timestamp));
         playerSessions[msg.sender] = GameState({
             heroTokenId: heroTokenId,
@@ -97,47 +97,46 @@ contract RoguelikeGame {
     }
     
     /**
-     * @notice Registra el movimiento del jugador, validado de forma off-chain con ZK-Proofs.
-     * @param newX Nueva coordenada X
-     * @param newY Nueva coordenada Y
-     * @param zkProof Representación de la prueba ZK que valida que el camino es legal y no atraviesa muros.
+     * @notice Registers player movement, validated off-chain via ZK-Proofs.
+     * @param newX Target X coordinate
+     * @param newY Target Y coordinate
+     * @param zkProof ZK proof validating the path is legal and does not cross walls.
      */
     function move(int256 newX, int256 newY, bytes calldata zkProof) external {
         GameState storage session = playerSessions[msg.sender];
-        require(session.isActive, "No tienes una partida activa");
-        require(session.hp > 0, "El heroe esta muerto");
+        require(session.isActive, "No active run session found");
+        require(session.hp > 0, "Hero is dead");
         
-        // En una implementación real, se llamaría a un verificador criptográfico (verificador ZK-SNARK de Circom/Noir)
-        // ej: require(zkVerifier.verify(zkProof, session.mapHash, newX, newY), "Prueba de movimiento invalida");
+        // Real implementation would call a cryptographic verifier (e.g. zk-SNARK verifier contract)
+        // e.g. require(zkVerifier.verify(zkProof, session.mapHash, newX, newY), "Invalid path proof");
         bool isProofValid = verifyZKProofMock(zkProof);
-        require(isProofValid, "Fallo en la prueba de conocimiento cero (ZK-Proof)");
+        require(isProofValid, "ZK-Proof verification failed");
         
         emit PlayerMoved(msg.sender, newX, newY, true);
     }
     
     /**
-     * @notice Interactúa con un cofre en el mapa.
-     * @param zkProof Prueba ZK que certifica que el jugador está en la coordenada exacta del cofre.
+     * @notice Interacts with a chest on the map.
+     * @param zkProof ZK proof proving the player is standing on the exact chest coordinate.
      */
     function openChest(bytes calldata zkProof) external {
         GameState storage session = playerSessions[msg.sender];
-        require(session.isActive, "No tienes una partida activa");
-        require(verifyZKProofMock(zkProof), "Fallo la prueba ZK de ubicacion de cofre");
+        require(session.isActive, "No active run session found");
+        require(verifyZKProofMock(zkProof), "ZK-Proof verification for chest location failed");
         
         session.score += 50;
         
-        // Recompensa directa en tokens
-        require(rougeToken.transfer(msg.sender, chestReward), "Fallo transferencia de recompensa");
+        // Transfer direct token reward
+        require(rougeToken.transfer(msg.sender, chestReward), "Loot transfer failed");
         
-        // Emitir evento
-        emit LootAcquired(msg.sender, "Cofre de Oro", chestReward);
+        emit LootAcquired(msg.sender, "Golden Chest", chestReward);
     }
     
     /**
-     * @notice Ejecuta el resultado de un combate con un monstruo.
-     * @param zkProof Prueba ZK de la batalla.
-     * @param monsterHpDamage Daño recibido por el jugador.
-     * @param defeated Verdadero si el enemigo fue derrotado.
+     * @notice Resolves the outcome of a monster combat turn.
+     * @param zkProof ZK proof of combat calculations.
+     * @param monsterHpDamage Damage dealt to the player.
+     * @param defeated True if the monster was killed.
      */
     function resolveCombat(
         bytes calldata zkProof, 
@@ -145,8 +144,8 @@ contract RoguelikeGame {
         bool defeated
     ) external {
         GameState storage session = playerSessions[msg.sender];
-        require(session.isActive, "No tienes una partida activa");
-        require(verifyZKProofMock(zkProof), "Prueba de combate invalida");
+        require(session.isActive, "No active run session found");
+        require(verifyZKProofMock(zkProof), "ZK-Proof verification for combat failed");
         
         if (monsterHpDamage >= session.hp) {
             session.hp = 0;
@@ -155,40 +154,40 @@ contract RoguelikeGame {
             session.hp -= monsterHpDamage;
             if (defeated) {
                 session.score += 100;
-                require(rougeToken.transfer(msg.sender, monsterReward), "Fallo transferencia por combate");
-                emit MonsterDefeated(msg.sender, "Monstruo Comun");
+                require(rougeToken.transfer(msg.sender, monsterReward), "Combat reward transfer failed");
+                emit MonsterDefeated(msg.sender, "Common Monster");
             }
         }
     }
     
     /**
-     * @notice Avanza de nivel en la mazmorra.
-     * @param zkProof Prueba ZK que certifica que el jugador alcanzó las escaleras '>'.
+     * @notice Descends to the next level of the dungeon.
+     * @param zkProof ZK proof proving the player reached the stairs symbol '>'.
      */
     function descendLevel(bytes calldata zkProof) external {
         GameState storage session = playerSessions[msg.sender];
-        require(session.isActive, "No tienes una partida activa");
-        require(verifyZKProofMock(zkProof), "Prueba de escaleras invalida");
+        require(session.isActive, "No active run session found");
+        require(verifyZKProofMock(zkProof), "ZK-Proof verification for stairs failed");
         
         session.currentLevel += 1;
         session.score += 200;
         
-        // Regenerar el hash del mapa para el siguiente nivel
+        // Regenerate map seed hash for next floor
         session.mapHash = keccak256(abi.encodePacked(session.mapHash, block.timestamp));
         
         emit LevelCompleted(msg.sender, session.currentLevel);
     }
     
     /**
-     * @notice Retirarse voluntariamente para salvar el personaje y acuñar los tesoros.
+     * @notice Voluntarily exits the dungeon to save the hero and claim item NFTs.
      */
     function claimRunAndExit() external {
         GameState memory session = playerSessions[msg.sender];
-        require(session.isActive, "No tienes una partida activa");
+        require(session.isActive, "No active run session found");
         
-        // Otorgar botín en NFT por completar la partida (ej: un cofre o pieza de equipamiento raro)
+        // Mint reward NFT if player progressed past Level 1
         if (session.currentLevel > 1) {
-            equipmentNFT.mint(msg.sender, 1, 1, ""); // ID 1: Espada de Aventurero
+            equipmentNFT.mint(msg.sender, 1, 1, ""); // ID 1: Adventurer's Sword
         }
         
         if (session.score > highScores[msg.sender]) {
@@ -201,12 +200,12 @@ contract RoguelikeGame {
     }
     
     /**
-     * @dev Maneja la muerte del héroe y aplica Permadeath.
+     * @dev Handles player death and applies permadeath mechanics.
      */
     function handlePlayerDeath(address player) internal {
         GameState memory session = playerSessions[player];
         
-        // Aplicar permadeath: Quemar el Heroe NFT del jugador
+        // Burn the Hero NFT
         heroNFT.burn(session.heroTokenId);
         
         if (session.score > highScores[player]) {
@@ -219,7 +218,7 @@ contract RoguelikeGame {
     }
     
     /**
-     * @dev Validador Mock de pruebas ZK.
+     * @dev Mock ZK proof verifier.
      */
     function verifyZKProofMock(bytes calldata proof) internal pure returns (bool) {
         return proof.length > 0;
