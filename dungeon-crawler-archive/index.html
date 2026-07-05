@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASCII Pac-Man - Web3 Arcade Prototype</title>
+    <title>ASCII Crawler - Web3 Roguelike Prototype</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,9 +20,9 @@
         <!-- Header -->
         <header class="app-header">
             <div class="logo">
-                <i class="fa-solid fa-ghost neon-text yellow-text"></i>
-                <span class="retro-title neon-text">ASCII PAC-MAN</span>
-                <span class="badge web3-badge">ARCADE L2</span>
+                <i class="fa-solid fa-dungeon neon-text"></i>
+                <span class="retro-title neon-text">ASCII CRAWLER</span>
+                <span class="badge web3-badge">WEB3 EDITION</span>
             </div>
             
             <div class="wallet-bar">
@@ -47,19 +47,19 @@
                             <span class="dot yellow"></span>
                             <span class="dot green"></span>
                         </div>
-                        <div class="terminal-title">PAC-MAN STAGE - BOARD <span id="lbl-level">1</span></div>
+                        <div class="terminal-title">DUNGEON - FLOOR <span id="lbl-level">1</span></div>
                         <div class="fps-counter">60 FPS</div>
                     </div>
                     
                     <div class="terminal-screen" id="terminal-screen">
                         <!-- Game map will be injected here -->
                         <div class="start-screen-prompt" id="start-prompt">
-                            <p class="blink text-primary">CONNECT YOUR WALLET & INSERT COIN</p>
-                            <p class="subtext">A run costs 0.00015 ETH (1 coin). Earn ETH in real-time by eating dots!</p>
+                            <p class="blink text-primary">CONNECT YOUR WALLET & START A RUN</p>
+                            <p class="subtext">Each run costs 10 $ROUGE and awards tokens for chests and monster defeats.</p>
                             <div class="controls-guide">
                                 <h3>CONTROLS</h3>
-                                <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move Pac-Man</p>
-                                <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad / Analog Stick support active</p>
+                                <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move</p>
+                                <p><kbd>Space</kbd>: Skip turn / Wait</p>
                             </div>
                         </div>
                     </div>
@@ -67,10 +67,10 @@
 
                 <div class="action-bar">
                     <button class="btn btn-success" id="btn-start-run" disabled>
-                        <i class="fa-solid fa-circle-dollar-to-slot"></i> Insert Coin (0.00015 ETH)
+                        <i class="fa-solid fa-play"></i> Start Run (10 $ROUGE)
                     </button>
                     <button class="btn btn-warning" id="btn-claim-exit" disabled>
-                        <i class="fa-solid fa-cash-register"></i> Cash Out & Retreat
+                        <i class="fa-solid fa-right-from-bracket"></i> Retreat & Save Hero
                     </button>
                     <button class="btn btn-danger" id="btn-session-keys" disabled>
                         <i class="fa-solid fa-key"></i> Enable Session Keys
@@ -78,52 +78,51 @@
                 </div>
             </section>
 
-            <!-- Right Column: Stats and Blockchain Logs -->
+            <!-- Right Column: Stats and Blockchain -->
             <aside class="sidebar-panel">
                 <!-- Hero Status Card -->
                 <div class="card stats-card">
-                    <h2 class="card-title"><i class="fa-solid fa-circle-user text-primary"></i> PLAYER STATS</h2>
+                    <h2 class="card-title"><i class="fa-solid fa-user-shield text-primary"></i> HERO STATUS</h2>
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Pacman NFT:</span>
+                            <span class="stat-label">Hero NFT:</span>
                             <span class="stat-value text-secondary" id="val-hero-nft">None</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Lives:</span>
-                            <span class="stat-value text-danger" id="val-lives" style="font-family: var(--font-retro); font-size: 0.8rem;">-</span>
+                            <span class="stat-label">Class:</span>
+                            <span class="stat-value text-success" id="val-hero-class">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Health (HP):</span>
+                            <div class="hp-bar-container">
+                                <div class="hp-bar" id="hp-bar" style="width: 0%"></div>
+                                <span class="hp-text" id="val-hp">0/100</span>
+                            </div>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Score:</span>
                             <span class="stat-value text-warning" id="val-score">0</span>
                         </div>
-                        <div class="stat-item">
-                            <span class="stat-label">Dots Eaten:</span>
-                            <span class="stat-value text-success" id="val-dots">0</span>
-                        </div>
-                        <div class="stat-item" id="effect-row" style="display: none;">
-                            <span class="stat-label text-secondary blink">POWER MODE:</span>
-                            <span class="stat-value text-secondary blink" id="val-effect-timer">0s</span>
-                        </div>
                     </div>
                     <div class="inventory-section">
-                        <h3>FRUIT COLLECTIBLES (ERC-1155)</h3>
+                        <h3>EQUIPMENT NFTs (ERC-1155)</h3>
                         <div class="inventory-slots" id="inventory-slots">
-                            <div class="slot empty" title="Cherry"><i class="fa-solid fa-apple-whole"></i></div>
-                            <div class="slot empty" title="Strawberry"><i class="fa-solid fa-lemon"></i></div>
-                            <div class="slot empty" title="Melon"><i class="fa-solid fa-carrot"></i></div>
+                            <div class="slot empty" title="Sword"><i class="fa-solid fa-sword"></i></div>
+                            <div class="slot empty" title="Shield"><i class="fa-solid fa-shield"></i></div>
+                            <div class="slot empty" title="Ring"><i class="fa-solid fa-ring"></i></div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Token Wallet Card -->
                 <div class="card finance-card">
-                    <h2 class="card-title"><i class="fa-solid fa-wallet text-warning"></i> NATIVE BALANCE</h2>
+                    <h2 class="card-title"><i class="fa-solid fa-coins text-warning"></i> TOKEN WALLET</h2>
                     <div class="token-balances">
                         <div class="balance-item">
-                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23627EEA'><path d='M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm1-15.845l5 2.833-5 2.834v-5.667zm-2 0v5.667l-5-2.834 5-2.833zm-5 4.833l5 2.833v5.667l-5-8.5zm12 0l-5 8.5v-5.667l5-2.833z'/></svg>" alt="Token ETH" class="token-logo">
+                            <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z'/></svg>" alt="Token ROUGE" class="token-logo">
                             <div class="balance-details">
-                                <span class="token-symbol">ETH (Native)</span>
-                                <span class="token-amount" id="val-rouge-balance">0.0000</span>
+                                <span class="token-symbol">$ROUGE</span>
+                                <span class="token-amount" id="val-rouge-balance">0.00</span>
                             </div>
                         </div>
                         <div class="session-keys-status" id="session-key-badge">
@@ -136,7 +135,7 @@
                 <div class="card logs-card">
                     <h2 class="card-title">
                         <i class="fa-solid fa-cubes text-secondary"></i> WEB3 LEDGER LOGS 
-                        <span class="active-network">Base L2 (Sim)</span>
+                        <span class="active-network">Arbitrum Nova (Sim)</span>
                     </h2>
                     <div class="logs-container" id="logs-container">
                         <div class="log-entry system">Ready to connect to Web3 node.</div>
@@ -147,7 +146,7 @@
         
         <!-- Footer -->
         <footer class="app-footer">
-            <p>ASCII Pac-Man © 2026 - Decentralized Arcade Experiment. Not for commercial use.</p>
+            <p>ASCII Crawler © 2026 - Designed for Web3 Gamification demonstration purposes.</p>
         </footer>
     </div>
 
@@ -161,11 +160,11 @@
                 <div class="burn-animation" id="burn-anim"></div>
             </div>
             <h3 class="text-danger">PERMADEATH ACTIVATED!</h3>
-            <p>Your Pacman NFT <strong id="lbl-burned-hero">#0</strong> has been **BURNED** from the smart contract.</p>
-            <p class="subtext">All statistics and your token ID have been permanently destroyed on-chain.</p>
+            <p>Your Hero NFT <strong id="lbl-burned-hero">#0</strong> has been **BURNED** from the smart contract.</p>
+            <p class="subtext">All character stats and token ID have been permanently destroyed on-chain.</p>
             <div class="score-summary">
                 <p>Final Score: <span id="lbl-final-score" class="text-warning">0</span></p>
-                <p>Dots Eaten: <span id="lbl-final-level" class="text-success">0</span></p>
+                <p>Floor Reached: <span id="lbl-final-level" class="text-success">0</span></p>
             </div>
             <button class="btn btn-danger" id="btn-close-gameover">Close Run Session</button>
         </div>

@@ -1,249 +1,175 @@
 /**
- * ASCII Roguelike Game Engine (game.js)
- * Handles grid exploration, turn-based inputs, simple monster AIs,
- * combat collisions, HTML5 Gamepad (Xbox/PlayStation) integrations,
- * and syncs with the Web3 blockchain simulator.
+ * ASCII Pac-Man Game Engine (game.js)
+ * Implements retro 2D grid movement, waka-waka dot eating, power pellet frightened mode,
+ * basic Ghost AI tracking (Blinky, Pinky, Inky, Clyde), modern Gamepad controller inputs,
+ * and real-time synchronization with the Web3 blockchain ledger simulator.
  */
 
 class GameEngine {
     constructor() {
         this.isActive = false;
-        this.level = 1;
         this.score = 0;
-        this.playerClass = "";
-        this.playerStats = {
-            hp: 100,
-            maxHp: 100,
-            x: 0,
-            y: 0,
-            attack: 15
+        this.dotsEaten = 0;
+        this.lives = 3;
+        this.level = 1;
+        
+        // Pac-Man stats
+        this.player = {
+            x: 14,
+            y: 10,
+            startX: 14,
+            startY: 10,
+            symbol: 'C' // Pac-Man shape
         };
 
-        // Map dimensions
-        this.rows = 11;
-        this.cols = 35;
+        this.rows = 14;
+        this.cols = 29;
         this.map = [];
-        this.monsters = [];
+        this.ghosts = [];
         
-        // Gamepad throttle controls
+        // Frightened mode (Power Pellet effect)
+        this.frightenedTurns = 0;
+        this.frightenedDuration = 40; // Turn duration for vulnerable ghosts
+        
+        // Input settings
         this.lastGamepadInputTime = 0;
-        this.gamepadCooldown = 220; // Milliseconds between moves to prevent spamming
+        this.gamepadCooldown = 180; // Fast response for arcade action
         
         // DOM Elements
         this.screenEl = document.getElementById('terminal-screen');
         this.lblLevel = document.getElementById('lbl-level');
-        this.valHp = document.getElementById('val-hp');
-        this.hpBar = document.getElementById('hp-bar');
         this.valScore = document.getElementById('val-score');
+        this.valDots = document.getElementById('val-dots');
+        this.valLives = document.getElementById('val-lives');
+        this.effectRow = document.getElementById('effect-row');
+        this.valEffectTimer = document.getElementById('val-effect-timer');
 
-        // Global instance registration
+        // Global instance mapping
         window.gameEngine = this;
         this.setupKeyboardInput();
         this.setupGamepadInput();
     }
 
-    startGame(playerClass) {
-        this.isActive = true;
-        this.level = 1;
-        this.score = 0;
-        this.playerClass = playerClass;
-        
-        // Adjust starting stats based on Hero class
-        this.playerStats.maxHp = 100;
-        if (playerClass === "Warrior") {
-            this.playerStats.hp = 120;
-            this.playerStats.maxHp = 120;
-            this.playerStats.attack = 18;
-        } else if (playerClass === "Mage") {
-            this.playerStats.hp = 80;
-            this.playerStats.maxHp = 80;
-            this.playerStats.attack = 22;
-        } else { // Rogue
-            this.playerStats.hp = 100;
-            this.playerStats.maxHp = 100;
-            this.playerStats.attack = 15;
-        }
+    // Classic map layout representation
+    getMapLayout() {
+        return [
+            "#############################",
+            "#............###............#",
+            "#.###.#####.#####.#####.###.#",
+            "#O###.#####.#####.#####.###O#",
+            "#...........................#",
+            "#.###.###.#########.###.###.#",
+            "#.....###....###....###.....#",
+            "#####.###### ### ######.#####",
+            "    #.###    . .    ###.#    ",
+            "#####.### ######### ###.#####",
+            "#.....###....###....###.....#",
+            "#O###.#####.#####.#####.###O#",
+            "#............###............#",
+            "#############################"
+        ];
+    }
 
-        // Generate starting level map
-        this.generateLevelMap();
+    startGame(playerSkin) {
+        this.isActive = true;
+        this.score = 0;
+        this.dotsEaten = 0;
+        this.lives = 3;
+        this.level = 1;
+        this.frightenedTurns = 0;
+        
+        // Initialize map layout and parse starting coordinates
+        this.loadMap();
+        this.spawnGhosts();
         this.updateUI();
-        if (window.retroAudio) window.retroAudio.startMusic();
-        window.web3Simulator.log("Active run! Explore the dungeon using W/A/S/D or Arrow keys. Gamepad support active.", "system");
+        
+        if (window.retroAudio) {
+            window.retroAudio.startMusic(false);
+        }
+        window.web3Simulator.log("Pac-Man started! Eat all dots (.) and avoid ghosts (G).", "system");
     }
 
     stopGame() {
         this.isActive = false;
-        if (window.retroAudio) window.retroAudio.stopMusic();
+        if (window.retroAudio) {
+            window.retroAudio.stopMusic();
+        }
+        this.effectRow.style.display = 'none';
         this.screenEl.innerHTML = `
             <div class="start-screen-prompt" id="start-prompt">
                 <p class="blink text-primary">RUN COMPLETED OR RETREATED</p>
-                <p class="subtext">Start a new run to explore a fresh dungeon layout.</p>
+                <p class="subtext">Insert another coin to start a new arcade run.</p>
                 <div class="controls-guide">
                     <h3>CONTROLS</h3>
-                    <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move</p>
-                    <p><kbd>Space</kbd>: Skip turn / Wait</p>
-                    <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad/Stick to Move, [A] to Wait</p>
+                    <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move Pac-Man</p>
+                    <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad / Analog Stick support active</p>
                 </div>
             </div>
         `;
     }
 
-    // Map generator
-    generateLevelMap() {
+    loadMap() {
         this.map = [];
-        this.monsters = [];
-
-        // Simple dungeon layout (2 rooms connected by a corridor)
+        const layout = this.getMapLayout();
         for (let r = 0; r < this.rows; r++) {
             this.map[r] = [];
             for (let c = 0; c < this.cols; c++) {
-                // Outermost boundaries are walls
-                if (r === 0 || r === this.rows - 1 || c === 0 || c === this.cols - 1) {
-                    this.map[r][c] = '#';
-                } else {
-                    this.map[r][c] = ' ';
-                }
+                this.map[r][c] = layout[r][c];
             }
         }
-
-        // Design Room 1 (Left Room)
-        const rm1 = { r1: 1, r2: 5, c1: 1, c2: 15 };
-        this.drawRoom(rm1);
-
-        // Design Room 2 (Right Room)
-        const rm2 = { r1: 5, r2: 9, c1: 18, c2: 33 };
-        this.drawRoom(rm2);
-
-        // Connection corridors (vertical & horizontal)
-        this.drawCorridor(3, 15, 3, 22);
-        this.drawCorridor(3, 22, 6, 22);
-        this.drawCorridor(6, 22, 6, 18);
-
-        // Draw doors
-        this.map[3][15] = '+';
-        this.map[6][18] = '+';
-
-        // Set starting player coordinates in Room 1
-        this.playerStats.x = 4;
-        this.playerStats.y = 3;
-
-        // Exit stairs in Room 2
-        this.map[8][30] = '>';
-
-        // Chests placement
-        this.map[2][12] = 'C';
-        if (this.level > 1) {
-            this.map[7][20] = 'C'; // Extra loot on higher floors
-        }
-
-        // Traps placement (^)
-        this.map[3][22] = '^'; 
-        if (this.level > 1) {
-            this.map[6][25] = '^';
-        }
-
-        // Spawn monsters
-        if (this.level === 1) {
-            this.spawnMonster(3, 10, "M", 35, 10); // Common Monster: 35 HP, 10 Attack
-            this.spawnMonster(7, 26, "M", 35, 10);
-        } else {
-            // Level 2+ introduces a stronger Troll (T)
-            this.spawnMonster(3, 10, "M", 35, 10);
-            this.spawnMonster(7, 26, "T", 70, 18); // Troll: 70 HP, 18 Attack
-        }
+        
+        // Reset player coordinates
+        this.player.x = this.player.startX;
+        this.player.y = this.player.startY;
     }
 
-    drawRoom(rm) {
-        for (let r = rm.r1; r <= rm.r2; r++) {
-            for (let c = rm.c1; c <= rm.c2; c++) {
-                this.map[r][c] = '.';
-            }
-        }
-        // Place walls around room edges (if not overlapping boundary walls)
-        for (let r = rm.r1 - 1; r <= rm.r2 + 1; r++) {
-            for (let c = rm.c1 - 1; c <= rm.c2 + 1; c++) {
-                if (r >= 0 && r < this.rows && c >= 0 && c < this.cols) {
-                    if (this.map[r][c] === ' ') {
-                        this.map[r][c] = '#';
-                    }
-                }
-            }
-        }
+    spawnGhosts() {
+        // Clear old ghosts and spawn Blinky, Pinky, Inky, Clyde at starting coordinates
+        // Blinky: Red (Chase), Pinky: Pink (Ambush), Inky: Cyan (Patrol), Clyde: Orange (Random wander)
+        this.ghosts = [
+            { id: 0, name: "Blinky", class: "tile-blinky", r: 8, c: 13, startR: 8, startC: 13, ai: "chase" },
+            { id: 1, name: "Pinky", class: "tile-pinky", r: 8, c: 15, startR: 8, startC: 15, ai: "ambush" },
+            { id: 2, name: "Inky", class: "tile-inky", r: 8, c: 12, startR: 8, startC: 12, ai: "patrol" },
+            { id: 3, name: "Clyde", class: "tile-clyde", r: 8, c: 16, startR: 8, startC: 16, ai: "wander" }
+        ];
     }
 
-    drawCorridor(r1, c1, r2, c2) {
-        const startR = Math.min(r1, r2);
-        const endR = Math.max(r1, r2);
-        const startC = Math.min(c1, c2);
-        const endC = Math.max(c1, c2);
-
-        for (let r = startR; r <= endR; r++) {
-            for (let c = startC; c <= endC; c++) {
-                this.map[r][c] = '.';
-            }
-        }
-    }
-
-    spawnMonster(r, c, type, hp, attack) {
-        this.monsters.push({
-            r: r,
-            c: c,
-            type: type,
-            hp: hp,
-            attack: attack
-        });
-    }
-
-    // Render 2D grid to colored HTML template strings
     renderMap() {
         let asciiHTML = '<div class="ascii-grid">';
         
         for (let r = 0; r < this.rows; r++) {
             let rowHTML = '';
             for (let c = 0; c < this.cols; c++) {
-                // Render player '@'
-                if (r === this.playerStats.y && c === this.playerStats.x) {
-                    rowHTML += '<span class="tile-player">@</span>';
+                // Check if player Pac-Man stands on coordinate
+                if (r === this.player.y && c === this.player.x) {
+                    rowHTML += `<span class="tile-player">${this.player.symbol}</span>`;
                     continue;
                 }
 
-                // Render active monsters
-                const monster = this.monsters.find(m => m.r === r && m.c === c);
-                if (monster) {
-                    const mClass = monster.type === 'T' ? 'tile-troll' : 'tile-monster';
-                    rowHTML += `<span class="${mClass}">${monster.type}</span>`;
+                // Check if a ghost stands on coordinate
+                const ghost = this.ghosts.find(g => g.r === r && g.c === c);
+                if (ghost) {
+                    const isVulnerable = this.frightenedTurns > 0;
+                    const ghostClass = isVulnerable ? "tile-frightened" : ghost.class;
+                    const ghostSymbol = isVulnerable ? "g" : "G"; // Lowercase 'g' indicates vulnerability
+                    rowHTML += `<span class="${ghostClass}">${ghostSymbol}</span>`;
                     continue;
                 }
 
                 const char = this.map[r][c];
-                let spanClass = '';
+                let spanClass = 'tile-floor';
 
-                switch (char) {
-                    case '#': spanClass = 'tile-wall'; break;
-                    case '.': spanClass = 'tile-floor'; break;
-                    case '+': spanClass = 'tile-door'; break;
-                    case '>': spanClass = 'tile-stairs'; break;
-                    case 'C': spanClass = 'tile-chest'; break;
-                    case '^': spanClass = 'tile-floor'; break; // Hidden traps render as floor tiles
-                    default: spanClass = 'tile-floor';
-                }
+                if (char === '#') spanClass = 'tile-wall';
+                else if (char === '.') spanClass = 'tile-dot';
+                else if (char === 'O') spanClass = 'tile-pellet';
 
-                // If trap is triggered, we show it
-                if (char === '^' && this.map[r][c] === '^' && this.isTrapDiscovered(r, c)) {
-                    rowHTML += '<span class="tile-trap">^</span>';
-                } else {
-                    rowHTML += `<span class="${spanClass}">${char}</span>`;
-                }
+                rowHTML += `<span class="${spanClass}">${char}</span>`;
             }
             asciiHTML += rowHTML + '\n';
         }
         
         asciiHTML += '</div>';
         this.screenEl.innerHTML = asciiHTML;
-    }
-
-    isTrapDiscovered(r, c) {
-        return this.map[r][c] === 'X'; // Marked as triggered/stepped 'X'
     }
 
     setupKeyboardInput() {
@@ -262,11 +188,8 @@ class GameEngine {
                 case 'A': dx = -1; break;
                 case 'ARROWRIGHT':
                 case 'D': dx = 1; break;
-                case ' ': // Space key skips turn (wait)
-                    this.processTurn();
-                    return;
                 default:
-                    return; // Ignore other inputs
+                    return; // Ignore other buttons
             }
 
             e.preventDefault();
@@ -274,15 +197,10 @@ class GameEngine {
         });
     }
 
-    // Connect and map modern gamepads (e.g. Xbox controllers) via HTML5 Gamepad API
     setupGamepadInput() {
         window.addEventListener("gamepadconnected", (e) => {
             window.web3Simulator.log(`Gamepad detected: ${e.gamepad.id}`, 'event');
             this.startGamepadPolling();
-        });
-
-        window.addEventListener("gamepaddisconnected", (e) => {
-            window.web3Simulator.log("Gamepad disconnected.", 'alert');
         });
     }
 
@@ -294,45 +212,28 @@ class GameEngine {
             }
 
             const gamepads = navigator.getGamepads();
-            const gp = gamepads[0]; // Use first controller detected
+            const gp = gamepads[0];
 
             if (gp) {
                 let dx = 0;
                 let dy = 0;
 
-                // 1. Read Standard D-Pad mapping: D-pad Up (12), Down (13), Left (14), Right (15)
                 if (gp.buttons[12]?.pressed) dy = -1;
                 else if (gp.buttons[13]?.pressed) dy = 1;
 
                 if (gp.buttons[14]?.pressed) dx = -1;
                 else if (gp.buttons[15]?.pressed) dx = 1;
 
-                // 2. Fallback to Left Analog Stick axis mapping (with 0.4 deadzone filter)
                 if (dx === 0 && dy === 0) {
                     const deadzone = 0.4;
-                    const axisX = gp.axes[0];
-                    const axisY = gp.axes[1];
-
-                    if (Math.abs(axisX) > deadzone) {
-                        dx = axisX > 0 ? 1 : -1;
-                    }
-                    if (Math.abs(axisY) > deadzone) {
-                        dy = axisY > 0 ? 1 : -1;
-                    }
+                    if (Math.abs(gp.axes[0]) > deadzone) dx = gp.axes[0] > 0 ? 1 : -1;
+                    if (Math.abs(gp.axes[1]) > deadzone) dy = gp.axes[1] > 0 ? 1 : -1;
                 }
 
-                // 3. Trigger action buttons
-                // Button 0 corresponds to A Button (Xbox) or Cross (PlayStation)
-                const aButtonPressed = gp.buttons[0]?.pressed;
-
-                // Process input throttled by directional cooldown to avoid high-frequency loop triggers
                 const now = performance.now();
                 if (now - this.lastGamepadInputTime > this.gamepadCooldown) {
                     if (dx !== 0 || dy !== 0) {
                         this.tryMove(dx, dy);
-                        this.lastGamepadInputTime = now;
-                    } else if (aButtonPressed) {
-                        this.processTurn(); // A Button skips turn/wait
                         this.lastGamepadInputTime = now;
                     }
                 }
@@ -345,8 +246,8 @@ class GameEngine {
     }
 
     tryMove(dx, dy) {
-        const nextX = this.playerStats.x + dx;
-        const nextY = this.playerStats.y + dy;
+        const nextX = this.player.x + dx;
+        const nextY = this.player.y + dy;
 
         // Wall collisions
         const char = this.map[nextY][nextX];
@@ -354,132 +255,242 @@ class GameEngine {
             return;
         }
 
-        // Combat triggers on monster tile overlap
-        const monsterIndex = this.monsters.findIndex(m => m.r === nextY && m.c === nextX);
-        if (monsterIndex !== -1) {
-            this.fight(monsterIndex);
-            this.processTurn();
-            return;
-        }
+        // Move Pac-Man orientation symbol representation
+        if (dx === 1) this.player.symbol = 'C';
+        else if (dx === -1) this.player.symbol = 'O'; // Flips mouth left
+        else if (dy === 1) this.player.symbol = 'V';  // Mouth pointing down
+        else if (dy === -1) this.player.symbol = 'A'; // Mouth pointing up
 
-        // Perform move coordinates change
-        this.playerStats.x = nextX;
-        this.playerStats.y = nextY;
+        this.player.x = nextX;
+        this.player.y = nextY;
 
-        // Register move transaction to ledger simulation log
-        window.web3Simulator.registerMoveTransaction(nextX, nextY);
-
-        // Process special tile landing events
-        if (char === 'C') {
+        let ateDot = false;
+        
+        // Handle dot consumption
+        if (char === '.') {
+            this.map[nextY][nextX] = ' '; // Eat dot
+            this.score += 10;
+            this.dotsEaten++;
+            ateDot = true;
+            if (window.retroAudio) window.retroAudio.playWaka();
+        } else if (char === 'O') {
+            this.map[nextY][nextX] = ' '; // Eat Power Pellet
             this.score += 50;
-            this.map[nextY][nextX] = '.'; // Remove chest from map grid
-            this.renderMap();
-            if (window.retroAudio) window.retroAudio.playChest();
-            window.web3Simulator.log("You opened a golden chest!", "event");
-            window.web3Simulator.openChestTransaction();
-        } else if (char === '^') {
-            const trapDamage = 15;
-            this.playerStats.hp = Math.max(0, this.playerStats.hp - trapDamage);
-            this.map[nextY][nextX] = 'X'; // Reveal triggered trap
-            if (window.retroAudio) window.retroAudio.playTrap();
-            window.web3Simulator.log(`Alert! You triggered an arrow trap. Lost ${trapDamage} HP.`, "alert");
-            this.checkPlayerDeath();
-        } else if (char === '>') {
-            // Descend floor stairs
-            this.level++;
-            this.score += 200;
-            if (window.retroAudio) window.retroAudio.playStairs();
-            window.web3Simulator.descendLevelTransaction(this.level);
-            window.web3Simulator.log(`Descending to Floor ${this.level} of the dungeon...`, "system");
-            this.generateLevelMap();
-        } else {
-            if (window.retroAudio) window.retroAudio.playStep();
+            this.frightenedTurns = this.frightenedDuration;
+            if (window.retroAudio) {
+                window.retroAudio.playWaka();
+                window.retroAudio.startMusic(true); // Frightened alarm music
+            }
+            window.web3Simulator.log("Power Pellet eaten! Ghosts are now vulnerable!", "event");
         }
 
+        // Register action to the simulated Web3 contract
+        window.web3Simulator.registerMoveAndEatTransaction(nextX, nextY, ateDot);
+
+        // Check if Pac-Man collides with any ghost at target space
+        this.checkGhostCollisions();
+
+        // Process game turn loops (Ghost AI moves)
         this.processTurn();
     }
 
-    fight(monsterIndex) {
-        const m = this.monsters[monsterIndex];
-        const mName = m.type === 'T' ? 'Troll' : 'Monster';
-        
-        // Player attacks
-        m.hp -= this.playerStats.attack;
-        if (window.retroAudio) window.retroAudio.playHit();
-        window.web3Simulator.log("You attack the " + mName + " for " + this.playerStats.attack + " damage.", "system");
-
-        if (m.hp <= 0) {
-            window.web3Simulator.log("You defeated the " + mName + "!", "event");
-            this.score += m.type === 'T' ? 150 : 80;
-            this.monsters.splice(monsterIndex, 1);
-            window.web3Simulator.resolveCombatTransaction(mName, true, 0);
-        } else {
-            // Immediate counterattack
-            const mDamage = m.attack;
-            this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-            window.web3Simulator.log("The " + mName + " counterattacks and deals you " + mDamage + " damage.", "alert");
-            window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
-            this.checkPlayerDeath();
+    checkGhostCollisions() {
+        const collidingGhost = this.ghosts.find(g => g.r === this.player.y && g.c === this.player.x);
+        if (collidingGhost) {
+            if (this.frightenedTurns > 0) {
+                // Eat ghost
+                this.score += 200;
+                window.web3Simulator.log(`Pac-Man ate vulnerable Ghost ${collidingGhost.name}!`, "event");
+                window.web3Simulator.eatGhostTransaction(collidingGhost.id);
+                
+                // Return eaten ghost back to house
+                collidingGhost.r = collidingGhost.startR;
+                collidingGhost.c = collidingGhost.startC;
+            } else {
+                // Lose life
+                this.lives--;
+                window.web3Simulator.log(`Pac-Man was caught by ${collidingGhost.name}! Lives remaining: ${this.lives}`, "alert");
+                window.web3Simulator.loseLifeTransaction(this.lives);
+                
+                if (this.lives <= 0) {
+                    this.isActive = false;
+                    window.web3Simulator.triggerPermadeath();
+                } else {
+                    // Reset positions for this life retry
+                    this.player.x = this.player.startX;
+                    this.player.y = this.player.startY;
+                    this.spawnGhosts();
+                }
+            }
         }
     }
 
     processTurn() {
         if (!this.isActive) return;
 
-        // Basic Monster AI: moves 1 tile closer if within 6 grid spaces
-        this.monsters.forEach((m, idx) => {
-            const dist = Math.abs(m.r - this.playerStats.y) + Math.abs(m.c - this.playerStats.x);
-            const mName = m.type === 'T' ? 'Troll' : 'Monster';
-
-            if (dist < 6 && dist > 1) {
-                let dr = 0;
-                let dc = 0;
-
-                if (m.r < this.playerStats.y) dr = 1;
-                else if (m.r > this.playerStats.y) dr = -1;
-                
-                if (m.c < this.playerStats.x) dc = 1;
-                else if (m.c > this.playerStats.x) dc = -1;
-
-                const nextR = m.r + dr;
-                const nextC = m.c + dc;
-
-                if (this.map[nextR][nextC] !== '#' && this.map[nextR][nextC] !== '>' && this.map[nextR][nextC] !== '+' &&
-                    !this.monsters.some(other => other !== m && other.r === nextR && other.c === nextC)) {
-                    m.r = nextR;
-                    m.c = nextC;
+        // Frightened timer countdown updates
+        if (this.frightenedTurns > 0) {
+            this.frightenedTurns--;
+            if (this.frightenedTurns === 0) {
+                if (window.retroAudio) {
+                    window.retroAudio.startMusic(false); // Return to standard siren
                 }
-            } else if (dist === 1) {
-                // Perform attack on player if standing adjacent on their turn
-                const mDamage = m.attack;
-                this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-                window.web3Simulator.log("The " + mName + " attacks you for " + mDamage + " damage on its turn.", "alert");
-                window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
-                this.checkPlayerDeath();
+                window.web3Simulator.log("Ghosts returned to normal speed and chase AI.", "system");
             }
+        }
+
+        // Ghosts Movement AI (Ghosts move every turn when normal, or every second turn if vulnerable/frightened)
+        const isVulnerable = this.frightenedTurns > 0;
+        
+        this.ghosts.forEach(g => {
+            if (isVulnerable && this.frightenedTurns % 2 === 0) {
+                // Vulnerable ghosts move at half speed
+                return;
+            }
+
+            let nextR = g.r;
+            let nextC = g.c;
+
+            if (isVulnerable) {
+                // Flee / Wander AI (move randomly away or choose random direction)
+                const dirs = this.getValidDirections(g.r, g.c);
+                if (dirs.length > 0) {
+                    const rDir = dirs[Math.floor(Math.random() * dirs.length)];
+                    nextR = g.r + rDir.dr;
+                    nextC = g.c + rDir.dc;
+                }
+            } else {
+                // Chase AI strategies
+                let targetR = this.player.y;
+                let targetC = this.player.x;
+
+                if (g.ai === "wander") {
+                    // Clyde wanders randomly
+                    const dirs = this.getValidDirections(g.r, g.c);
+                    if (dirs.length > 0) {
+                        const rDir = dirs[Math.floor(Math.random() * dirs.length)];
+                        nextR = g.r + rDir.dr;
+                        nextC = g.c + rDir.dc;
+                    }
+                } else {
+                    if (g.ai === "ambush") {
+                        // Pinky tries to target 3 steps ahead of player position
+                        const dirVector = this.getPlayerDirectionVector();
+                        targetR = Math.max(1, Math.min(this.rows - 2, this.player.y + dirVector.dy * 3));
+                        targetC = Math.max(1, Math.min(this.cols - 2, this.player.x + dirVector.dx * 3));
+                    }
+
+                    // Blinky & Inky direct path calculation to target
+                    const bestDir = this.findBestDirectionToTarget(g.r, g.c, targetR, targetC);
+                    nextR = g.r + bestDir.dr;
+                    nextC = g.c + bestDir.dc;
+                }
+            }
+
+            // Perform ghost movement
+            g.r = nextR;
+            g.c = nextC;
         });
+
+        // Double check collisions after ghost moves
+        this.checkGhostCollisions();
+
+        // Level completed check
+        this.checkLevelCompletion();
 
         this.updateUI();
     }
 
-    checkPlayerDeath() {
-        if (this.playerStats.hp <= 0) {
-            this.isActive = false;
-            window.web3Simulator.triggerPermadeath();
+    getValidDirections(r, c) {
+        const dirs = [
+            { dr: -1, dc: 0 }, // Up
+            { dr: 1, dc: 0 },  // Down
+            { dr: 0, dc: -1 }, // Left
+            { dr: 0, dc: 1 }   // Right
+        ];
+        
+        return dirs.filter(d => {
+            const nr = r + d.dr;
+            const nc = c + d.dc;
+            return nr >= 0 && nr < this.rows && nc >= 0 && nc < this.cols && this.map[nr][nc] !== '#';
+        });
+    }
+
+    findBestDirectionToTarget(startR, startC, targetR, targetC) {
+        const validDirs = this.getValidDirections(startR, startC);
+        if (validDirs.length === 0) return { dr: 0, dc: 0 };
+
+        let bestDir = validDirs[0];
+        let minDist = Infinity;
+
+        validDirs.forEach(d => {
+            const nr = startR + d.dr;
+            const nc = startC + d.dc;
+            // Simple Manhattan distance formula
+            const dist = Math.abs(nr - targetR) + Math.abs(nc - targetC);
+            if (dist < minDist) {
+                minDist = dist;
+                bestDir = d;
+            }
+        });
+
+        return bestDir;
+    }
+
+    getPlayerDirectionVector() {
+        switch (this.player.symbol) {
+            case 'C': return { dx: 1, dy: 0 };
+            case 'O': return { dx: -1, dy: 0 };
+            case 'V': return { dx: 0, dy: 1 };
+            case 'A': return { dx: 0, dy: -1 };
+            default: return { dx: 0, dy: 0 };
+        }
+    }
+
+    checkLevelCompletion() {
+        // Scans the 2D grid map for any remaining dots
+        let dotsRemaining = false;
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                if (this.map[r][c] === '.' || this.map[r][c] === 'O') {
+                    dotsRemaining = true;
+                    break;
+                }
+            }
+            if (dotsRemaining) break;
+        }
+
+        if (!dotsRemaining) {
+            this.level++;
+            window.web3Simulator.log(`Stage completed! Advancing to Board ${this.level}.`, "system");
+            if (window.retroAudio) window.retroAudio.playFruit();
+            this.loadMap();
+            this.spawnGhosts();
         }
     }
 
     updateUI() {
         this.lblLevel.textContent = this.level;
         this.valScore.textContent = this.score;
-        this.valHp.textContent = this.playerStats.hp + "/" + this.playerStats.maxHp;
-        
-        const hpPercent = (this.playerStats.hp / this.playerStats.maxHp) * 100;
-        this.hpBar.style.width = hpPercent + "%";
+        this.valDots.textContent = this.dotsEaten;
+
+        // Format lives representation
+        let livesHTML = '';
+        for (let i = 0; i < this.lives; i++) {
+            livesHTML += 'C ';
+        }
+        this.valLives.textContent = livesHTML || "None 💀";
+
+        // Power mode timer updates
+        if (this.frightenedTurns > 0) {
+            this.effectRow.style.display = 'flex';
+            this.valEffectTimer.textContent = `${Math.ceil(this.frightenedTurns / 4)}s`; // Turn scale to seconds mapping
+        } else {
+            this.effectRow.style.display = 'none';
+        }
 
         this.renderMap();
     }
 }
 
-// Instantiate the game engine globally
 new GameEngine();
