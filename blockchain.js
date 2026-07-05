@@ -16,6 +16,14 @@ class Web3Simulator {
         this.gameActive = false;
         this.blockNumber = 12053420;
 
+        this.unlockedPalettes = {
+            classic: true,
+            green: false,
+            pico: false
+        };
+        this.currentPalette = 'classic';
+        this.isBypassMode = false;
+
         // DOM Elements
         this.walletInfo = document.getElementById('wallet-info');
         this.walletAddressEl = document.querySelector('.wallet-address');
@@ -30,15 +38,25 @@ class Web3Simulator {
         this.valHeroNft = document.getElementById('val-hero-nft');
         this.valHeroClass = document.getElementById('val-hero-class');
         this.sessionKeyBadge = document.getElementById('session-key-badge');
+        
+        this.chkBypass = document.getElementById('chk-bypass-web3');
+        this.btnPaletteClassic = document.getElementById('btn-palette-classic');
+        this.btnPaletteGreen = document.getElementById('btn-palette-green');
+        this.btnPalettePico = document.getElementById('btn-palette-pico');
 
         this.setupEventListeners();
     }
 
     setupEventListeners() {
-        this.btnConnect.addEventListener('click', () => this.connectWallet());
-        this.btnSessionKeys.addEventListener('click', () => this.toggleSessionKeys());
-        this.btnStartRun.addEventListener('click', () => this.insertCoinTransaction());
-        this.btnClaimExit.addEventListener('click', () => this.cashOutTransaction());
+        if (this.btnConnect) this.btnConnect.addEventListener('click', () => this.connectWallet());
+        if (this.btnSessionKeys) this.btnSessionKeys.addEventListener('click', () => this.toggleSessionKeys());
+        if (this.btnStartRun) this.btnStartRun.addEventListener('click', () => this.insertCoinTransaction());
+        if (this.btnClaimExit) this.btnClaimExit.addEventListener('click', () => this.cashOutTransaction());
+        
+        if (this.chkBypass) this.chkBypass.addEventListener('change', (e) => this.toggleBypassMode(e.target.checked));
+        if (this.btnPaletteClassic) this.btnPaletteClassic.addEventListener('click', () => this.selectPalette('classic'));
+        if (this.btnPaletteGreen) this.btnPaletteGreen.addEventListener('click', () => this.selectPalette('green'));
+        if (this.btnPalettePico) this.btnPalettePico.addEventListener('click', () => this.selectPalette('pico'));
     }
 
     log(message, type = 'system') {
@@ -143,6 +161,16 @@ class Web3Simulator {
     }
 
     insertCoinTransaction() {
+        if (this.isBypassMode) {
+            this.gameActive = true;
+            if (this.btnClaimExit) this.btnClaimExit.disabled = false;
+            if (this.btnStartRun) this.btnStartRun.disabled = true;
+            if (window.gameEngine) {
+                window.gameEngine.startGame(this.activeHeroSkin);
+            }
+            return;
+        }
+
         if (!this.isConnected || this.gameActive) return;
         if (this.ethBalance < 0.00015) {
             this.log("Error: Insufficient balance. Needs exactly 0.00015 ETH to start.", 'alert');
@@ -187,6 +215,7 @@ class Web3Simulator {
 
     registerMoveAndEatTransaction(x, y, ateDot) {
         if (!this.gameActive) return;
+        if (this.isBypassMode) return;
         
         // ZK-Proof proving coordinates valid on grid
         this.log(`Generating ZK-Proof for location [${x}, ${y}]${ateDot ? ' & dot eaten' : ''}...`, 'zk');
@@ -234,6 +263,7 @@ class Web3Simulator {
     loseLifeTransaction(remainingLives) {
         if (!this.gameActive) return;
         if (window.retroAudio) window.retroAudio.playDeath();
+        if (this.isBypassMode) return;
 
         this.log(`Pacman lost a life. Remaining: ${remainingLives}. Submitting state update...`, 'alert');
         
@@ -280,6 +310,15 @@ class Web3Simulator {
     triggerPermadeath() {
         if (!this.gameActive) return;
         if (window.retroAudio) window.retroAudio.playGameOver();
+        
+        if (this.isBypassMode) {
+            this.resetGameState();
+            if (this.btnStartRun) {
+                this.btnStartRun.disabled = false;
+                this.btnStartRun.innerHTML = "<i class='fa-solid fa-play'></i> Play Free";
+            }
+            return;
+        }
         
         this.log(`GAME OVER: Lives 0. Commencing Permadeath sequence in smart contract...`, 'alert');
         this.gameActive = false;
@@ -363,6 +402,109 @@ class Web3Simulator {
             }
             slotsEl.appendChild(slot);
         }
+    }
+
+    toggleBypassMode(checked) {
+        this.isBypassMode = checked;
+        if (window.retroAudio) window.retroAudio.playClick();
+        
+        if (checked) {
+            this.log("Free Play (Bypass Web3) Mode enabled. No coin insert or gas required.", "alert");
+            if (this.btnStartRun) {
+                this.btnStartRun.disabled = false;
+                this.btnStartRun.innerHTML = "<i class='fa-solid fa-play'></i> Play Free";
+                this.btnStartRun.className = "btn btn-success";
+            }
+            
+            this.unlockedPalettes.green = true;
+            this.unlockedPalettes.pico = true;
+            this.updatePaletteButtonsUI();
+        } else {
+            this.log("Web3 Mode restored. Connect wallet and insert coin to play.", "system");
+            if (this.btnStartRun) {
+                if (!this.isConnected) {
+                    this.btnStartRun.disabled = true;
+                    this.btnStartRun.innerHTML = "<i class='fa-solid fa-circle-dollar-to-slot'></i> Insert Coin (0.00015 ETH)";
+                } else {
+                    this.btnStartRun.disabled = this.gameActive;
+                    this.btnStartRun.innerHTML = "<i class='fa-solid fa-circle-dollar-to-slot'></i> Insert Coin (0.00015 ETH)";
+                }
+                this.btnStartRun.className = "btn btn-success";
+            }
+            
+            this.unlockedPalettes.green = false;
+            this.unlockedPalettes.pico = false;
+            if (this.currentPalette !== 'classic') {
+                this.currentPalette = 'classic';
+                if (window.gameEngine) window.gameEngine.setPalette('classic');
+            }
+            this.updatePaletteButtonsUI();
+        }
+    }
+
+    selectPalette(name) {
+        if (window.retroAudio) window.retroAudio.playClick();
+        
+        if (this.unlockedPalettes[name]) {
+            this.currentPalette = name;
+            this.updatePaletteButtonsUI();
+            this.log(`Palette changed to: ${name.toUpperCase()}`, "system");
+            if (window.gameEngine) {
+                window.gameEngine.setPalette(name);
+            }
+        } else {
+            if (!this.isConnected && !this.isBypassMode) {
+                this.log("Error: Connect your wallet first to purchase skin themes.", "alert");
+                return;
+            }
+            
+            const cost = 0.001;
+            if (this.ethBalance < cost) {
+                this.log(`Error: Insufficient balance. Needs ${cost} ETH.`, "alert");
+                return;
+            }
+            
+            this.log(`Purchasing theme ${name.toUpperCase()} for ${cost} ETH...`, 'system');
+            
+            setTimeout(() => {
+                this.ethBalance -= cost;
+                if (this.valEthBalance) this.valEthBalance.textContent = this.ethBalance.toFixed(6);
+                
+                this.unlockedPalettes[name] = true;
+                this.currentPalette = name;
+                this.updatePaletteButtonsUI();
+                
+                const { hash, block } = this.getNewTxHash();
+                this.log(`Tx Successful. Purchased Skin Theme NFT in block #${block}. Tx: ${hash.slice(0, 16)}...`, 'tx');
+                this.log(`Event ThemeUnlocked: Skin ${name.toUpperCase()} unlocked in wallet!`, 'event');
+                
+                if (window.gameEngine) {
+                    window.gameEngine.setPalette(name);
+                }
+            }, 1000);
+        }
+    }
+
+    updatePaletteButtonsUI() {
+        const updateBtn = (btn, name, label) => {
+            if (!btn) return;
+            btn.className = "btn-palette";
+            if (this.currentPalette === name) {
+                btn.classList.add("active");
+            }
+            
+            if (this.unlockedPalettes[name]) {
+                btn.classList.remove("locked");
+                btn.innerHTML = `${label} <span class="badge-free">Owned</span>`;
+            } else {
+                btn.classList.add("locked");
+                btn.innerHTML = `${label} <span class="badge-price">0.001 ETH</span>`;
+            }
+        };
+
+        updateBtn(this.btnPaletteClassic, "classic", "Arcade");
+        updateBtn(this.btnPaletteGreen, "green", "Game Boy");
+        updateBtn(this.btnPalettePico, "pico", "PICO-8");
     }
 }
 

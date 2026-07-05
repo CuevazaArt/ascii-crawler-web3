@@ -723,3 +723,106 @@ kbd {
         grid-template-columns: 1fr;
     }
 }
+
+/* PALETTE SELECTOR THEMES */
+.palette-selector-section {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-color);
+}
+
+.palette-title {
+    font-size: 0.7rem;
+    font-family: var(--font-retro);
+    color: var(--text-muted);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.palette-options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.btn-palette {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: hsla(210, 30%, 8%, 0.6);
+    border: 1px solid var(--border-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.btn-palette:hover {
+    border-color: var(--color-primary);
+    background: hsla(210, 30%, 15%, 0.8);
+}
+
+.btn-palette.active {
+    border-color: var(--color-success);
+    background: var(--color-success-glow);
+    color: #fff;
+    box-shadow: 0 0 5px var(--color-success-glow);
+}
+
+.btn-palette.locked {
+    border-style: dashed;
+    opacity: 0.8;
+}
+
+.badge-free {
+    font-size: 0.6rem;
+    background-color: var(--color-success-glow);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+    padding: 1px 3px;
+    border-radius: 3px;
+}
+
+.badge-price {
+    font-size: 0.6rem;
+    background-color: var(--color-primary-glow);
+    border: 1px solid var(--color-primary);
+    color: hsl(200, 100%, 75%);
+    padding: 1px 3px;
+    border-radius: 3px;
+}
+
+/* BYPASS CONTROL GROUP AND TOGGLE */
+.bypass-control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+    align-items: center;
+}
+
+.bypass-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.bypass-toggle input {
+    cursor: pointer;
+    accent-color: var(--color-danger);
+}
+
+.toggle-label {
+    white-space: nowrap;
+}

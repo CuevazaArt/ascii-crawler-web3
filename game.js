@@ -37,9 +37,43 @@ class GameEngine {
         this.frightenedDuration = 40; 
         
         this.gameInterval = null;
-        this.gameTickMs = 250; // 4 ticks per second for authentic speed
+        this.gameTickMs = 250; 
+        
+        // Palettes configuration
+        this.palettes = {
+            classic: {
+                bg: "#000000",
+                wall: "#1919a3",
+                dot: "#ffb8ae",
+                pellet: "#ffb8ae",
+                player: "#ffff00",
+                ghosts: ["#ff0000", "#ffb8ff", "#00ffff", "#ffb852"],
+                frightened: "#0000ff"
+            },
+            green: {
+                bg: "#0f380f",
+                wall: "#306230",
+                dot: "#8bac0f",
+                pellet: "#8bac0f",
+                player: "#9bbc0f",
+                ghosts: ["#306230", "#306230", "#306230", "#306230"],
+                frightened: "#8bac0f"
+            },
+            pico: {
+                bg: "#1d2b53",
+                wall: "#7e2553",
+                dot: "#ffccaa",
+                pellet: "#ff004d",
+                player: "#ffec27",
+                ghosts: ["#ff004d", "#ff77a8", "#29adff", "#ffa300"],
+                frightened: "#29adff"
+            }
+        };
+        this.activePalette = 'classic';
         
         // DOM Elements
+        this.canvas = document.getElementById('game-canvas');
+        if (this.canvas) this.ctx = this.canvas.getContext('2d');
         this.screenEl = document.getElementById('terminal-screen');
         this.lblLevel = document.getElementById('lbl-level');
         this.valScore = document.getElementById('val-score');
@@ -89,6 +123,12 @@ class GameEngine {
         
         this.loadMap();
         this.spawnGhosts();
+        
+        // Show canvas and hide start prompt
+        const prompt = document.getElementById('start-prompt');
+        if (prompt) prompt.style.display = 'none';
+        if (this.canvas) this.canvas.style.display = 'block';
+        
         this.updateUI();
         
         if (window.retroAudio) {
@@ -114,17 +154,11 @@ class GameEngine {
             window.retroAudio.stopMusic();
         }
         if (this.effectRow) this.effectRow.style.display = 'none';
-        this.screenEl.innerHTML = `
-            <div class="start-screen-prompt" id="start-prompt">
-                <p class="blink text-primary">RUN COMPLETED OR RETREATED</p>
-                <p class="subtext">Insert another coin to start a new arcade run.</p>
-                <div class="controls-guide">
-                    <h3>CONTROLS</h3>
-                    <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move Pac-Man</p>
-                    <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad / Analog Stick support active</p>
-                </div>
-            </div>
-        `;
+        
+        // Hide canvas and show start prompt
+        if (this.canvas) this.canvas.style.display = 'none';
+        const prompt = document.getElementById('start-prompt');
+        if (prompt) prompt.style.display = 'block';
     }
 
     loadMap() {
@@ -149,38 +183,130 @@ class GameEngine {
         ];
     }
 
-    renderMap() {
-        let asciiHTML = '<div class="ascii-grid">';
-        for (let r = 0; r < this.rows; r++) {
-            let rowHTML = '';
-            for (let c = 0; c < this.cols; c++) {
-                if (r === this.player.y && c === this.player.x) {
-                    rowHTML += `<span class="tile-player">${this.player.symbol}</span>`;
-                    continue;
-                }
-
-                const ghost = this.ghosts.find(g => g.r === r && g.c === c);
-                if (ghost) {
-                    const isVulnerable = this.frightenedTurns > 0;
-                    const ghostClass = isVulnerable ? "tile-frightened" : ghost.class;
-                    const ghostSymbol = isVulnerable ? "g" : "G";
-                    rowHTML += `<span class="${ghostClass}">${ghostSymbol}</span>`;
-                    continue;
-                }
-
-                const char = this.map[r][c];
-                let spanClass = 'tile-floor';
-
-                if (char === '#') spanClass = 'tile-wall';
-                else if (char === '.') spanClass = 'tile-dot';
-                else if (char === 'O') spanClass = 'tile-pellet';
-
-                rowHTML += `<span class="${spanClass}">${char}</span>`;
-            }
-            asciiHTML += rowHTML + '\n';
+    setPalette(name) {
+        if (this.palettes[name]) {
+            this.activePalette = name;
+            this.renderMap();
         }
-        asciiHTML += '</div>';
-        this.screenEl.innerHTML = asciiHTML;
+    }
+
+    renderMap() {
+        if (!this.ctx || !this.canvas) return;
+        const tileSize = 20;
+        const palette = this.palettes[this.activePalette];
+        
+        // 1. Draw Background
+        this.ctx.fillStyle = palette.bg;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 2. Draw walls, dots, pellets
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                const char = this.map[r][c];
+                const x = c * tileSize;
+                const y = r * tileSize;
+
+                if (char === '#') {
+                    // Draw solid wall block
+                    this.ctx.fillStyle = palette.wall;
+                    this.ctx.fillRect(x + 1, y + 1, tileSize - 2, tileSize - 2);
+                } else if (char === '.') {
+                    // Draw normal dot
+                    this.ctx.fillStyle = palette.dot;
+                    this.ctx.fillRect(x + tileSize/2 - 2, y + tileSize/2 - 2, 4, 4);
+                } else if (char === 'O') {
+                    // Draw Power Pellet
+                    this.ctx.fillStyle = palette.pellet;
+                    this.ctx.beginPath();
+                    this.ctx.arc(x + tileSize/2, y + tileSize/2, 6, 0, Math.PI * 2);
+                    this.ctx.fill();
+                }
+            }
+        }
+
+        // 3. Draw Pac-Man
+        const centerX = this.player.x * tileSize + tileSize / 2;
+        const centerY = this.player.y * tileSize + tileSize / 2;
+        const radius = tileSize / 2 - 2;
+        
+        this.ctx.fillStyle = palette.player;
+        this.ctx.beginPath();
+        
+        // Animated open/close mouth
+        const open = (Date.now() % 500 < 250); 
+        let startAngle = 0;
+        let endAngle = Math.PI * 2;
+        
+        if (open) {
+            if (this.dirX === 1) { // Right
+                startAngle = 0.2 * Math.PI;
+                endAngle = 1.8 * Math.PI;
+            } else if (this.dirX === -1) { // Left
+                startAngle = 1.2 * Math.PI;
+                endAngle = 0.8 * Math.PI;
+            } else if (this.dirY === 1) { // Down
+                startAngle = 0.7 * Math.PI;
+                endAngle = 0.3 * Math.PI;
+            } else if (this.dirY === -1) { // Up
+                startAngle = 1.7 * Math.PI;
+                endAngle = 1.3 * Math.PI;
+            }
+        }
+        
+        if (open && (this.dirX !== 0 || this.dirY !== 0)) {
+            this.ctx.moveTo(centerX, centerY);
+            this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+            this.ctx.lineTo(centerX, centerY);
+        } else {
+            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        }
+        this.ctx.fill();
+
+        // 4. Draw Ghosts
+        this.ghosts.forEach(g => {
+            const gx = g.c * tileSize + 2;
+            const gy = g.r * tileSize + 2;
+            const size = tileSize - 4;
+            const isVulnerable = this.frightenedTurns > 0;
+            
+            // Ghost body
+            this.ctx.fillStyle = isVulnerable 
+                ? (this.frightenedTurns < 12 && Date.now() % 400 < 200 ? "#ffffff" : palette.frightened) 
+                : palette.ghosts[g.id];
+            
+            this.ctx.beginPath();
+            this.ctx.arc(gx + size / 2, gy + size / 3 + 2, size / 2, Math.PI, 0, false);
+            this.ctx.lineTo(gx + size, gy + size);
+            
+            // Wavy bottom
+            const waveWidth = size / 3;
+            this.ctx.lineTo(gx + size - waveWidth * 0.5, gy + size - 3);
+            this.ctx.lineTo(gx + size - waveWidth, gy + size);
+            this.ctx.lineTo(gx + size - waveWidth * 1.5, gy + size - 3);
+            this.ctx.lineTo(gx + size - waveWidth * 2, gy + size);
+            this.ctx.lineTo(gx + size - waveWidth * 2.5, gy + size - 3);
+            this.ctx.lineTo(gx, gy + size);
+            this.ctx.closePath();
+            this.ctx.fill();
+            
+            // Eyes
+            this.ctx.fillStyle = "#ffffff";
+            const eyeRadius = 3;
+            const eyeY = gy + size / 3 + 2;
+            
+            this.ctx.beginPath();
+            this.ctx.arc(gx + size / 3, eyeY, eyeRadius, 0, Math.PI * 2);
+            this.ctx.arc(gx + size * 2/3, eyeY, eyeRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+            
+            // Pupils
+            this.ctx.fillStyle = isVulnerable ? "#ff0000" : "#0000ff";
+            const pupilRadius = 1.5;
+            this.ctx.beginPath();
+            this.ctx.arc(gx + size / 3 + this.dirX, eyeY + this.dirY, pupilRadius, 0, Math.PI * 2);
+            this.ctx.arc(gx + size * 2/3 + this.dirX, eyeY + this.dirY, pupilRadius, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
     }
 
     setupKeyboardInput() {

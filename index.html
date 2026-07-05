@@ -52,7 +52,9 @@
                     </div>
                     
                     <div class="terminal-screen" id="terminal-screen">
-                        <!-- Game map will be injected here -->
+                        <!-- Canvas replacing ASCII grid for solid pixels -->
+                        <canvas id="game-canvas" width="580" height="280" style="display: none; background: #000; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></canvas>
+                        
                         <div class="start-screen-prompt" id="start-prompt">
                             <p class="blink text-primary">CONNECT YOUR WALLET & INSERT COIN</p>
                             <p class="subtext">A run costs 0.00015 ETH (1 coin). Earn ETH in real-time by eating dots!</p>
@@ -72,9 +74,16 @@
                     <button class="btn btn-warning" id="btn-claim-exit" disabled>
                         <i class="fa-solid fa-cash-register"></i> Cash Out & Retreat
                     </button>
-                    <button class="btn btn-danger" id="btn-session-keys" disabled>
-                        <i class="fa-solid fa-key"></i> Enable Session Keys
-                    </button>
+                    <div class="bypass-control-group">
+                        <button class="btn btn-danger" id="btn-session-keys" disabled style="width: 100%;">
+                            <i class="fa-solid fa-key"></i> Enable Keys
+                        </button>
+                        <label class="bypass-toggle">
+                            <input type="checkbox" id="chk-bypass-web3">
+                            <span class="slider"></span>
+                            <span class="toggle-label">Free Play (Bypass)</span>
+                        </label>
+                    </div>
                 </div>
             </section>
 
@@ -126,6 +135,21 @@
                             <div class="slot empty" title="Cherry"><i class="fa-solid fa-apple-whole"></i></div>
                             <div class="slot empty" title="Strawberry"><i class="fa-solid fa-lemon"></i></div>
                             <div class="slot empty" title="Melon"><i class="fa-solid fa-carrot"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="palette-selector-section">
+                        <h3 class="palette-title"><i class="fa-solid fa-palette text-secondary"></i> COLOR PALETTE THEMES</h3>
+                        <div class="palette-options">
+                            <button class="btn-palette active" id="btn-palette-classic" data-palette="classic">
+                                Arcade <span class="badge-free">Free</span>
+                            </button>
+                            <button class="btn-palette locked" id="btn-palette-green" data-palette="green">
+                                Game Boy <span class="badge-price" id="lbl-price-green">0.001 ETH</span>
+                            </button>
+                            <button class="btn-palette locked" id="btn-palette-pico" data-palette="pico">
+                                PICO-8 <span class="badge-price" id="lbl-price-pico">0.001 ETH</span>
+                            </button>
                         </div>
                     </div>
                 </div>
