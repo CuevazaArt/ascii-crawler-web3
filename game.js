@@ -1,7 +1,8 @@
 /**
  * ASCII Roguelike Game Engine (game.js)
  * Handles grid exploration, turn-based inputs, simple monster AIs,
- * combat collisions, and syncs with the Web3 blockchain simulator.
+ * combat collisions, HTML5 Gamepad (Xbox/PlayStation) integrations,
+ * and syncs with the Web3 blockchain simulator.
  */
 
 class GameEngine {
@@ -24,6 +25,10 @@ class GameEngine {
         this.map = [];
         this.monsters = [];
         
+        // Gamepad throttle controls
+        this.lastGamepadInputTime = 0;
+        this.gamepadCooldown = 220; // Milliseconds between moves to prevent spamming
+        
         // DOM Elements
         this.screenEl = document.getElementById('terminal-screen');
         this.lblLevel = document.getElementById('lbl-level');
@@ -34,6 +39,7 @@ class GameEngine {
         // Global instance registration
         window.gameEngine = this;
         this.setupKeyboardInput();
+        this.setupGamepadInput();
     }
 
     startGame(playerClass) {
@@ -61,7 +67,7 @@ class GameEngine {
         // Generate starting level map
         this.generateLevelMap();
         this.updateUI();
-        window.web3Simulator.log("Active run! Explore the dungeon using W/A/S/D or Arrow keys.", "system");
+        window.web3Simulator.log("Active run! Explore the dungeon using W/A/S/D or Arrow keys. Gamepad support active.", "system");
     }
 
     stopGame() {
@@ -74,6 +80,7 @@ class GameEngine {
                     <h3>CONTROLS</h3>
                     <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move</p>
                     <p><kbd>Space</kbd>: Skip turn / Wait</p>
+                    <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad/Stick to Move, [A] to Wait</p>
                 </div>
             </div>
         `;
@@ -265,6 +272,76 @@ class GameEngine {
         });
     }
 
+    // Connect and map modern gamepads (e.g. Xbox controllers) via HTML5 Gamepad API
+    setupGamepadInput() {
+        window.addEventListener("gamepadconnected", (e) => {
+            window.web3Simulator.log(`Gamepad detected: ${e.gamepad.id}`, 'event');
+            this.startGamepadPolling();
+        });
+
+        window.addEventListener("gamepaddisconnected", (e) => {
+            window.web3Simulator.log("Gamepad disconnected.", 'alert');
+        });
+    }
+
+    startGamepadPolling() {
+        const poll = (time) => {
+            if (!this.isActive) {
+                requestAnimationFrame(poll);
+                return;
+            }
+
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[0]; // Use first controller detected
+
+            if (gp) {
+                let dx = 0;
+                let dy = 0;
+
+                // 1. Read Standard D-Pad mapping: D-pad Up (12), Down (13), Left (14), Right (15)
+                if (gp.buttons[12]?.pressed) dy = -1;
+                else if (gp.buttons[13]?.pressed) dy = 1;
+
+                if (gp.buttons[14]?.pressed) dx = -1;
+                else if (gp.buttons[15]?.pressed) dx = 1;
+
+                // 2. Fallback to Left Analog Stick axis mapping (with 0.4 deadzone filter)
+                if (dx === 0 && dy === 0) {
+                    const deadzone = 0.4;
+                    const axisX = gp.axes[0];
+                    const axisY = gp.axes[1];
+
+                    if (Math.abs(axisX) > deadzone) {
+                        dx = axisX > 0 ? 1 : -1;
+                    }
+                    if (Math.abs(axisY) > deadzone) {
+                        dy = axisY > 0 ? 1 : -1;
+                    }
+                }
+
+                // 3. Trigger action buttons
+                // Button 0 corresponds to A Button (Xbox) or Cross (PlayStation)
+                const aButtonPressed = gp.buttons[0]?.pressed;
+
+                // Process input throttled by directional cooldown to avoid high-frequency loop triggers
+                const now = performance.now();
+                if (now - this.lastGamepadInputTime > this.gamepadCooldown) {
+                    if (dx !== 0 || dy !== 0) {
+                        this.tryMove(dx, dy);
+                        this.lastGamepadInputTime = now;
+                    } else if (aButtonPressed) {
+                        this.processTurn(); // A Button skips turn/wait
+                        this.lastGamepadInputTime = now;
+                    }
+                }
+            }
+
+            requestAnimationFrame(poll);
+        };
+
+        requestAnimationFrame(poll);
+    }
+
     tryMove(dx, dy) {
         const nextX = this.playerStats.x + dx;
         const nextY = this.playerStats.y + dy;
@@ -321,10 +398,10 @@ class GameEngine {
         
         // Player attacks
         m.hp -= this.playerStats.attack;
-        window.web3Simulator.log(`You attack the ${mName} for ${this.playerStats.attack} damage.`, "system");
+        window.web3Simulator.log("You attack the " + mName + " for " + this.playerStats.attack + " damage.", "system");
 
         if (m.hp <= 0) {
-            window.web3Simulator.log(`You defeated the ${mName}!`, "event");
+            window.web3Simulator.log("You defeated the " + mName + "!", "event");
             this.score += m.type === 'T' ? 150 : 80;
             this.monsters.splice(monsterIndex, 1);
             window.web3Simulator.resolveCombatTransaction(mName, true, 0);
@@ -332,7 +409,7 @@ class GameEngine {
             // Immediate counterattack
             const mDamage = m.attack;
             this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-            window.web3Simulator.log(`The ${mName} counterattacks and deals you ${mDamage} damage.`, "alert");
+            window.web3Simulator.log("The " + mName + " counterattacks and deals you " + mDamage + " damage.", "alert");
             window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
             this.checkPlayerDeath();
         }
@@ -368,7 +445,7 @@ class GameEngine {
                 // Perform attack on player if standing adjacent on their turn
                 const mDamage = m.attack;
                 this.playerStats.hp = Math.max(0, this.playerStats.hp - mDamage);
-                window.web3Simulator.log(`The ${mName} attacks you for ${mDamage} damage on its turn.`, "alert");
+                window.web3Simulator.log("The " + mName + " attacks you for " + mDamage + " damage on its turn.", "alert");
                 window.web3Simulator.resolveCombatTransaction(mName, false, mDamage);
                 this.checkPlayerDeath();
             }
@@ -387,10 +464,10 @@ class GameEngine {
     updateUI() {
         this.lblLevel.textContent = this.level;
         this.valScore.textContent = this.score;
-        this.valHp.textContent = `${this.playerStats.hp}/${this.playerStats.maxHp}`;
+        this.valHp.textContent = this.playerStats.hp + "/" + this.playerStats.maxHp;
         
         const hpPercent = (this.playerStats.hp / this.playerStats.maxHp) * 100;
-        this.hpBar.style.width = `${hpPercent}%`;
+        this.hpBar.style.width = hpPercent + "%";
 
         this.renderMap();
     }
