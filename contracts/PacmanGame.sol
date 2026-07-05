@@ -13,7 +13,7 @@ interface IGameEquipmentNFT {
 
 /**
  * @title PacmanGame
- * @notice Smart contract for a Web3 ASCII Pacman game with native ETH coins, ZK-proof movement/dot verification, and Permadeath.
+ * @notice Smart contract for a Web3 Pacman game with native ETH coins, ZK-proof movement/dot verification, and Permadeath.
  */
 contract PacmanGame {
     

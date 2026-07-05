@@ -1,5 +1,5 @@
 /**
- * ASCII Pac-Man Game Engine (game.js)
+ * Pac-Man Game Engine (game.js)
  * Implements real-time 250ms game ticks, movement buffering for precise grid turning,
  * classic Ghost AI logic, Gamepad inputs, and real-time Web3 ledger syncing.
  */
