@@ -573,6 +573,8 @@ kbd {
 
 /* BLOCKCHAIN LEDGER LOGS */
 .logs-card {
+    display: flex;
+    flex-direction: column;
     flex-grow: 1;
     min-height: 0; /* Allow shrinking in flex */
 }
