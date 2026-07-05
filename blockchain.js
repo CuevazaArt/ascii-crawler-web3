@@ -72,6 +72,7 @@ class Web3Simulator {
     // Connect wallet simulation
     connectWallet() {
         if (this.isConnected) return;
+        if (window.retroAudio) window.retroAudio.playClick();
         
         this.log("Connecting wallet (MetaMask/Rabby)...");
         this.btnConnect.disabled = true;
@@ -115,6 +116,7 @@ class Web3Simulator {
     // Toggle Session Keys (Account Abstraction ERC-4337)
     toggleSessionKeys() {
         if (!this.isConnected) return;
+        if (window.retroAudio) window.retroAudio.playClick();
         
         if (this.hasSessionKeys) {
             this.hasSessionKeys = false;
@@ -143,6 +145,7 @@ class Web3Simulator {
     // Start Run transaction
     startRunTransaction() {
         if (!this.isConnected || this.gameActive) return;
+        if (window.retroAudio) window.retroAudio.playClick();
         if (this.rougeBalance < 10) {
             this.log("Error: Insufficient balance. You need 10 $ROUGE.", 'alert');
             return;
@@ -263,6 +266,7 @@ class Web3Simulator {
     // Claim and exit transaction
     claimAndExitTransaction() {
         if (!this.gameActive) return;
+        if (window.retroAudio) window.retroAudio.playClick();
         
         this.log("Starting run claim and safe exit...", 'system');
         this.btnClaimExit.disabled = true;
@@ -299,6 +303,7 @@ class Web3Simulator {
     // Permadeath triggers
     triggerPermadeath() {
         if (!this.gameActive) return;
+        if (window.retroAudio) window.retroAudio.playGameOver();
         
         this.log(`Alert! Your health reached 0. Initiating death protocol in contract...`, 'alert');
         this.gameActive = false;

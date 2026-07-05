@@ -67,11 +67,13 @@ class GameEngine {
         // Generate starting level map
         this.generateLevelMap();
         this.updateUI();
+        if (window.retroAudio) window.retroAudio.startMusic();
         window.web3Simulator.log("Active run! Explore the dungeon using W/A/S/D or Arrow keys. Gamepad support active.", "system");
     }
 
     stopGame() {
         this.isActive = false;
+        if (window.retroAudio) window.retroAudio.stopMusic();
         this.screenEl.innerHTML = `
             <div class="start-screen-prompt" id="start-prompt">
                 <p class="blink text-primary">RUN COMPLETED OR RETREATED</p>
@@ -372,21 +374,26 @@ class GameEngine {
             this.score += 50;
             this.map[nextY][nextX] = '.'; // Remove chest from map grid
             this.renderMap();
+            if (window.retroAudio) window.retroAudio.playChest();
             window.web3Simulator.log("You opened a golden chest!", "event");
             window.web3Simulator.openChestTransaction();
         } else if (char === '^') {
             const trapDamage = 15;
             this.playerStats.hp = Math.max(0, this.playerStats.hp - trapDamage);
             this.map[nextY][nextX] = 'X'; // Reveal triggered trap
+            if (window.retroAudio) window.retroAudio.playTrap();
             window.web3Simulator.log(`Alert! You triggered an arrow trap. Lost ${trapDamage} HP.`, "alert");
             this.checkPlayerDeath();
         } else if (char === '>') {
             // Descend floor stairs
             this.level++;
             this.score += 200;
+            if (window.retroAudio) window.retroAudio.playStairs();
             window.web3Simulator.descendLevelTransaction(this.level);
             window.web3Simulator.log(`Descending to Floor ${this.level} of the dungeon...`, "system");
             this.generateLevelMap();
+        } else {
+            if (window.retroAudio) window.retroAudio.playStep();
         }
 
         this.processTurn();
@@ -398,6 +405,7 @@ class GameEngine {
         
         // Player attacks
         m.hp -= this.playerStats.attack;
+        if (window.retroAudio) window.retroAudio.playHit();
         window.web3Simulator.log("You attack the " + mName + " for " + this.playerStats.attack + " damage.", "system");
 
         if (m.hp <= 0) {
