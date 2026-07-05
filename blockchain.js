@@ -81,15 +81,17 @@ class Web3Simulator {
             this.activeHeroId = "#" + (Math.floor(Math.random()*900) + 100);
             
             // Update UI
-            this.indicatorEl.className = "status-indicator connected";
-            this.walletAddressEl.textContent = this.walletAddress;
-            this.btnConnect.innerHTML = "<i class='fa-solid fa-plug'></i> Wallet Connected";
-            this.btnConnect.classList.replace('btn-primary', 'btn-danger');
-            this.btnConnect.style.opacity = "0.75";
+            if (this.indicatorEl) this.indicatorEl.className = "status-indicator connected";
+            if (this.walletAddressEl) this.walletAddressEl.textContent = this.walletAddress;
+            if (this.btnConnect) {
+                this.btnConnect.innerHTML = "<i class='fa-solid fa-plug'></i> Wallet Connected";
+                this.btnConnect.classList.replace('btn-primary', 'btn-danger');
+                this.btnConnect.style.opacity = "0.75";
+            }
             
-            this.valEthBalance.textContent = this.ethBalance.toFixed(6);
-            this.valHeroNft.textContent = this.activeHeroId;
-            this.valHeroClass.textContent = this.activeHeroSkin;
+            if (this.valEthBalance) this.valEthBalance.textContent = this.ethBalance.toFixed(6);
+            if (this.valHeroNft) this.valHeroNft.textContent = this.activeHeroId;
+            if (this.valHeroClass) this.valHeroClass.textContent = this.activeHeroSkin;
             
             this.btnStartRun.disabled = false;
             this.btnSessionKeys.disabled = false;
@@ -112,20 +114,26 @@ class Web3Simulator {
         
         if (this.hasSessionKeys) {
             this.hasSessionKeys = false;
-            this.sessionKeyBadge.className = "session-keys-status";
-            this.sessionKeyBadge.innerHTML = "<i class='fa-solid fa-shield-halved'></i> Session Keys Inactive";
-            this.btnSessionKeys.innerHTML = "<i class='fa-solid fa-key'></i> Enable Session Keys";
+            if (this.sessionKeyBadge) {
+                this.sessionKeyBadge.className = "session-keys-status-compact";
+                this.sessionKeyBadge.innerHTML = "<i class='fa-solid fa-shield-halved'></i> Keys Inactive";
+            }
+            if (this.btnSessionKeys) this.btnSessionKeys.innerHTML = "<i class='fa-solid fa-key'></i> Enable Session Keys";
             this.log("Session Keys cleared from local keystore.", 'alert');
         } else {
             this.log("Authorizing transient Session Key for grid actions...");
-            this.btnSessionKeys.disabled = true;
+            if (this.btnSessionKeys) this.btnSessionKeys.disabled = true;
 
             setTimeout(() => {
                 this.hasSessionKeys = true;
-                this.sessionKeyBadge.className = "session-keys-status active";
-                this.sessionKeyBadge.innerHTML = "<i class='fa-solid fa-shield'></i> Session Keys Active";
-                this.btnSessionKeys.innerHTML = "<i class='fa-solid fa-key'></i> Disable Session Keys";
-                this.btnSessionKeys.disabled = false;
+                if (this.sessionKeyBadge) {
+                    this.sessionKeyBadge.className = "session-keys-status-compact active";
+                    this.sessionKeyBadge.innerHTML = "<i class='fa-solid fa-shield'></i> Keys Active";
+                }
+                if (this.btnSessionKeys) {
+                    this.btnSessionKeys.innerHTML = "<i class='fa-solid fa-key'></i> Disable Session Keys";
+                    this.btnSessionKeys.disabled = false;
+                }
 
                 const { hash, block } = this.getNewTxHash();
                 this.log(`Session key registered on-chain in block #${block}. Tx: ${hash.slice(0, 14)}...`, 'tx');

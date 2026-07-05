@@ -1,8 +1,7 @@
 /**
  * ASCII Pac-Man Game Engine (game.js)
- * Implements retro 2D grid movement, waka-waka dot eating, power pellet frightened mode,
- * basic Ghost AI tracking (Blinky, Pinky, Inky, Clyde), modern Gamepad controller inputs,
- * and real-time synchronization with the Web3 blockchain ledger simulator.
+ * Implements real-time 250ms game ticks, movement buffering for precise grid turning,
+ * classic Ghost AI logic, Gamepad inputs, and real-time Web3 ledger syncing.
  */
 
 class GameEngine {
@@ -13,13 +12,13 @@ class GameEngine {
         this.lives = 3;
         this.level = 1;
         
-        // Pac-Man stats
+        // Pac-Man stats and coordinates
         this.player = {
-            x: 14,
+            x: 10,
             y: 10,
-            startX: 14,
+            startX: 10,
             startY: 10,
-            symbol: 'C' // Pac-Man shape
+            symbol: 'C'
         };
 
         this.rows = 14;
@@ -27,13 +26,18 @@ class GameEngine {
         this.map = [];
         this.ghosts = [];
         
-        // Frightened mode (Power Pellet effect)
-        this.frightenedTurns = 0;
-        this.frightenedDuration = 40; // Turn duration for vulnerable ghosts
+        // Real-time directions and buffer
+        this.dirX = -1; // Starts moving left
+        this.dirY = 0;
+        this.nextDirX = -1;
+        this.nextDirY = 0;
         
-        // Input settings
-        this.lastGamepadInputTime = 0;
-        this.gamepadCooldown = 180; // Fast response for arcade action
+        // Frightened mode
+        this.frightenedTurns = 0;
+        this.frightenedDuration = 40; 
+        
+        this.gameInterval = null;
+        this.gameTickMs = 250; // 4 ticks per second for authentic speed
         
         // DOM Elements
         this.screenEl = document.getElementById('terminal-screen');
@@ -50,7 +54,6 @@ class GameEngine {
         this.setupGamepadInput();
     }
 
-    // Classic map layout representation
     getMapLayout() {
         return [
             "#############################",
@@ -78,7 +81,12 @@ class GameEngine {
         this.level = 1;
         this.frightenedTurns = 0;
         
-        // Initialize map layout and parse starting coordinates
+        // Set starting movement directions
+        this.dirX = -1;
+        this.dirY = 0;
+        this.nextDirX = -1;
+        this.nextDirY = 0;
+        
         this.loadMap();
         this.spawnGhosts();
         this.updateUI();
@@ -86,15 +94,26 @@ class GameEngine {
         if (window.retroAudio) {
             window.retroAudio.startMusic(false);
         }
-        window.web3Simulator.log("Pac-Man started! Eat all dots (.) and avoid ghosts (G).", "system");
+        
+        window.web3Simulator.log("Pac-Man started! Use WASD / Arrows to buffer directions.", "system");
+
+        // Clear existing intervals
+        if (this.gameInterval) clearInterval(this.gameInterval);
+        
+        // Launch real-time tick interval
+        this.gameInterval = setInterval(() => this.gameTick(), this.gameTickMs);
     }
 
     stopGame() {
         this.isActive = false;
+        if (this.gameInterval) {
+            clearInterval(this.gameInterval);
+            this.gameInterval = null;
+        }
         if (window.retroAudio) {
             window.retroAudio.stopMusic();
         }
-        this.effectRow.style.display = 'none';
+        if (this.effectRow) this.effectRow.style.display = 'none';
         this.screenEl.innerHTML = `
             <div class="start-screen-prompt" id="start-prompt">
                 <p class="blink text-primary">RUN COMPLETED OR RETREATED</p>
@@ -117,15 +136,11 @@ class GameEngine {
                 this.map[r][c] = layout[r][c];
             }
         }
-        
-        // Reset player coordinates
         this.player.x = this.player.startX;
         this.player.y = this.player.startY;
     }
 
     spawnGhosts() {
-        // Clear old ghosts and spawn Blinky, Pinky, Inky, Clyde at starting coordinates
-        // Blinky: Red (Chase), Pinky: Pink (Ambush), Inky: Cyan (Patrol), Clyde: Orange (Random wander)
         this.ghosts = [
             { id: 0, name: "Blinky", class: "tile-blinky", r: 8, c: 13, startR: 8, startC: 13, ai: "chase" },
             { id: 1, name: "Pinky", class: "tile-pinky", r: 8, c: 15, startR: 8, startC: 15, ai: "ambush" },
@@ -136,22 +151,19 @@ class GameEngine {
 
     renderMap() {
         let asciiHTML = '<div class="ascii-grid">';
-        
         for (let r = 0; r < this.rows; r++) {
             let rowHTML = '';
             for (let c = 0; c < this.cols; c++) {
-                // Check if player Pac-Man stands on coordinate
                 if (r === this.player.y && c === this.player.x) {
                     rowHTML += `<span class="tile-player">${this.player.symbol}</span>`;
                     continue;
                 }
 
-                // Check if a ghost stands on coordinate
                 const ghost = this.ghosts.find(g => g.r === r && g.c === c);
                 if (ghost) {
                     const isVulnerable = this.frightenedTurns > 0;
                     const ghostClass = isVulnerable ? "tile-frightened" : ghost.class;
-                    const ghostSymbol = isVulnerable ? "g" : "G"; // Lowercase 'g' indicates vulnerability
+                    const ghostSymbol = isVulnerable ? "g" : "G";
                     rowHTML += `<span class="${ghostClass}">${ghostSymbol}</span>`;
                     continue;
                 }
@@ -167,7 +179,6 @@ class GameEngine {
             }
             asciiHTML += rowHTML + '\n';
         }
-        
         asciiHTML += '</div>';
         this.screenEl.innerHTML = asciiHTML;
     }
@@ -189,11 +200,12 @@ class GameEngine {
                 case 'ARROWRIGHT':
                 case 'D': dx = 1; break;
                 default:
-                    return; // Ignore other buttons
+                    return;
             }
 
             e.preventDefault();
-            this.tryMove(dx, dy);
+            this.nextDirX = dx;
+            this.nextDirY = dy;
         });
     }
 
@@ -205,7 +217,7 @@ class GameEngine {
     }
 
     startGamepadPolling() {
-        const poll = (time) => {
+        const poll = () => {
             if (!this.isActive) {
                 requestAnimationFrame(poll);
                 return;
@@ -233,118 +245,131 @@ class GameEngine {
                 const now = performance.now();
                 if (now - this.lastGamepadInputTime > this.gamepadCooldown) {
                     if (dx !== 0 || dy !== 0) {
-                        this.tryMove(dx, dy);
+                        this.nextDirX = dx;
+                        this.nextDirY = dy;
                         this.lastGamepadInputTime = now;
                     }
                 }
             }
-
             requestAnimationFrame(poll);
         };
-
         requestAnimationFrame(poll);
     }
 
-    tryMove(dx, dy) {
-        const nextX = this.player.x + dx;
-        const nextY = this.player.y + dy;
+    canMove(dx, dy) {
+        const nx = this.player.x + dx;
+        const ny = this.player.y + dy;
+        if (nx < 0 || nx >= this.cols || ny < 0 || ny >= this.rows) return false;
+        return this.map[ny][nx] !== '#';
+    }
 
-        // Wall collisions
-        const char = this.map[nextY][nextX];
-        if (char === '#') {
-            return;
+    gameTick() {
+        if (!this.isActive) return;
+
+        // 1. Try to turn in the buffered next direction
+        if ((this.nextDirX !== 0 || this.nextDirY !== 0) && this.canMove(this.nextDirX, this.nextDirY)) {
+            this.dirX = this.nextDirX;
+            this.dirY = this.nextDirY;
+            // Clear buffer
+            this.nextDirX = 0;
+            this.nextDirY = 0;
         }
 
-        // Move Pac-Man orientation symbol representation
-        if (dx === 1) this.player.symbol = 'C';
-        else if (dx === -1) this.player.symbol = 'O'; // Flips mouth left
-        else if (dy === 1) this.player.symbol = 'V';  // Mouth pointing down
-        else if (dy === -1) this.player.symbol = 'A'; // Mouth pointing up
+        // 2. Perform the movement in current direction
+        if (this.canMove(this.dirX, this.dirY)) {
+            const nextX = this.player.x + this.dirX;
+            const nextY = this.player.y + this.dirY;
 
-        this.player.x = nextX;
-        this.player.y = nextY;
+            // Update direction symbol
+            if (this.dirX === 1) this.player.symbol = 'C';
+            else if (this.dirX === -1) this.player.symbol = 'O';
+            else if (this.dirY === 1) this.player.symbol = 'V';
+            else if (this.dirY === -1) this.player.symbol = 'A';
 
-        let ateDot = false;
-        
-        // Handle dot consumption
-        if (char === '.') {
-            this.map[nextY][nextX] = ' '; // Eat dot
-            this.score += 10;
-            this.dotsEaten++;
-            ateDot = true;
-            if (window.retroAudio) window.retroAudio.playWaka();
-        } else if (char === 'O') {
-            this.map[nextY][nextX] = ' '; // Eat Power Pellet
-            this.score += 50;
-            this.frightenedTurns = this.frightenedDuration;
-            if (window.retroAudio) {
-                window.retroAudio.playWaka();
-                window.retroAudio.startMusic(true); // Frightened alarm music
+            this.player.x = nextX;
+            this.player.y = nextY;
+
+            let ateDot = false;
+            const char = this.map[nextY][nextX];
+            
+            if (char === '.') {
+                this.map[nextY][nextX] = ' ';
+                this.score += 10;
+                this.dotsEaten++;
+                ateDot = true;
+                if (window.retroAudio) window.retroAudio.playWaka();
+            } else if (char === 'O') {
+                this.map[nextY][nextX] = ' ';
+                this.score += 50;
+                this.frightenedTurns = this.frightenedDuration;
+                if (window.retroAudio) {
+                    window.retroAudio.playWaka();
+                    window.retroAudio.startMusic(true);
+                }
+                window.web3Simulator.log("Power Pellet eaten! Ghosts are now vulnerable!", "event");
             }
-            window.web3Simulator.log("Power Pellet eaten! Ghosts are now vulnerable!", "event");
+
+            window.web3Simulator.registerMoveAndEatTransaction(nextX, nextY, ateDot);
         }
 
-        // Register action to the simulated Web3 contract
-        window.web3Simulator.registerMoveAndEatTransaction(nextX, nextY, ateDot);
-
-        // Check if Pac-Man collides with any ghost at target space
+        // 3. Check collisions
         this.checkGhostCollisions();
 
-        // Process game turn loops (Ghost AI moves)
-        this.processTurn();
+        // 4. Move Ghosts
+        this.moveGhosts();
+
+        // 5. Check collisions again after ghosts move
+        this.checkGhostCollisions();
+
+        // 6. Check stage completion
+        this.checkLevelCompletion();
+
+        // 7. Frightened timer decrement
+        if (this.frightenedTurns > 0) {
+            this.frightenedTurns--;
+            if (this.frightenedTurns === 0) {
+                if (window.retroAudio) window.retroAudio.startMusic(false);
+                window.web3Simulator.log("Ghosts returned to normal speed.", "system");
+            }
+        }
+
+        this.updateUI();
     }
 
     checkGhostCollisions() {
         const collidingGhost = this.ghosts.find(g => g.r === this.player.y && g.c === this.player.x);
         if (collidingGhost) {
             if (this.frightenedTurns > 0) {
-                // Eat ghost
                 this.score += 200;
-                window.web3Simulator.log(`Pac-Man ate vulnerable Ghost ${collidingGhost.name}!`, "event");
+                window.web3Simulator.log(`Pac-Man ate Ghost ${collidingGhost.name}!`, "event");
                 window.web3Simulator.eatGhostTransaction(collidingGhost.id);
-                
-                // Return eaten ghost back to house
                 collidingGhost.r = collidingGhost.startR;
                 collidingGhost.c = collidingGhost.startC;
             } else {
-                // Lose life
                 this.lives--;
-                window.web3Simulator.log(`Pac-Man was caught by ${collidingGhost.name}! Lives remaining: ${this.lives}`, "alert");
+                window.web3Simulator.log(`Pac-Man caught by ${collidingGhost.name}! Lives: ${this.lives}`, "alert");
                 window.web3Simulator.loseLifeTransaction(this.lives);
                 
                 if (this.lives <= 0) {
-                    this.isActive = false;
+                    this.stopGame();
                     window.web3Simulator.triggerPermadeath();
                 } else {
-                    // Reset positions for this life retry
                     this.player.x = this.player.startX;
                     this.player.y = this.player.startY;
+                    this.dirX = -1;
+                    this.dirY = 0;
                     this.spawnGhosts();
                 }
             }
         }
     }
 
-    processTurn() {
-        if (!this.isActive) return;
-
-        // Frightened timer countdown updates
-        if (this.frightenedTurns > 0) {
-            this.frightenedTurns--;
-            if (this.frightenedTurns === 0) {
-                if (window.retroAudio) {
-                    window.retroAudio.startMusic(false); // Return to standard siren
-                }
-                window.web3Simulator.log("Ghosts returned to normal speed and chase AI.", "system");
-            }
-        }
-
-        // Ghosts Movement AI (Ghosts move every turn when normal, or every second turn if vulnerable/frightened)
+    moveGhosts() {
         const isVulnerable = this.frightenedTurns > 0;
         
         this.ghosts.forEach(g => {
             if (isVulnerable && this.frightenedTurns % 2 === 0) {
-                // Vulnerable ghosts move at half speed
+                // Frightened ghosts move at half speed
                 return;
             }
 
@@ -352,7 +377,6 @@ class GameEngine {
             let nextC = g.c;
 
             if (isVulnerable) {
-                // Flee / Wander AI (move randomly away or choose random direction)
                 const dirs = this.getValidDirections(g.r, g.c);
                 if (dirs.length > 0) {
                     const rDir = dirs[Math.floor(Math.random() * dirs.length)];
@@ -360,12 +384,10 @@ class GameEngine {
                     nextC = g.c + rDir.dc;
                 }
             } else {
-                // Chase AI strategies
                 let targetR = this.player.y;
                 let targetC = this.player.x;
 
                 if (g.ai === "wander") {
-                    // Clyde wanders randomly
                     const dirs = this.getValidDirections(g.r, g.c);
                     if (dirs.length > 0) {
                         const rDir = dirs[Math.floor(Math.random() * dirs.length)];
@@ -374,41 +396,28 @@ class GameEngine {
                     }
                 } else {
                     if (g.ai === "ambush") {
-                        // Pinky tries to target 3 steps ahead of player position
                         const dirVector = this.getPlayerDirectionVector();
                         targetR = Math.max(1, Math.min(this.rows - 2, this.player.y + dirVector.dy * 3));
                         targetC = Math.max(1, Math.min(this.cols - 2, this.player.x + dirVector.dx * 3));
                     }
-
-                    // Blinky & Inky direct path calculation to target
                     const bestDir = this.findBestDirectionToTarget(g.r, g.c, targetR, targetC);
                     nextR = g.r + bestDir.dr;
                     nextC = g.c + bestDir.dc;
                 }
             }
 
-            // Perform ghost movement
             g.r = nextR;
             g.c = nextC;
         });
-
-        // Double check collisions after ghost moves
-        this.checkGhostCollisions();
-
-        // Level completed check
-        this.checkLevelCompletion();
-
-        this.updateUI();
     }
 
     getValidDirections(r, c) {
         const dirs = [
-            { dr: -1, dc: 0 }, // Up
-            { dr: 1, dc: 0 },  // Down
-            { dr: 0, dc: -1 }, // Left
-            { dr: 0, dc: 1 }   // Right
+            { dr: -1, dc: 0 },
+            { dr: 1, dc: 0 },
+            { dr: 0, dc: -1 },
+            { dr: 0, dc: 1 }
         ];
-        
         return dirs.filter(d => {
             const nr = r + d.dr;
             const nc = c + d.dc;
@@ -426,29 +435,20 @@ class GameEngine {
         validDirs.forEach(d => {
             const nr = startR + d.dr;
             const nc = startC + d.dc;
-            // Simple Manhattan distance formula
             const dist = Math.abs(nr - targetR) + Math.abs(nc - targetC);
             if (dist < minDist) {
                 minDist = dist;
                 bestDir = d;
             }
         });
-
         return bestDir;
     }
 
     getPlayerDirectionVector() {
-        switch (this.player.symbol) {
-            case 'C': return { dx: 1, dy: 0 };
-            case 'O': return { dx: -1, dy: 0 };
-            case 'V': return { dx: 0, dy: 1 };
-            case 'A': return { dx: 0, dy: -1 };
-            default: return { dx: 0, dy: 0 };
-        }
+        return { dx: this.dirX, dy: this.dirY };
     }
 
     checkLevelCompletion() {
-        // Scans the 2D grid map for any remaining dots
         let dotsRemaining = false;
         for (let r = 0; r < this.rows; r++) {
             for (let c = 0; c < this.cols; c++) {
@@ -470,25 +470,22 @@ class GameEngine {
     }
 
     updateUI() {
-        this.lblLevel.textContent = this.level;
-        this.valScore.textContent = this.score;
-        this.valDots.textContent = this.dotsEaten;
+        if (this.lblLevel) this.lblLevel.textContent = this.level;
+        if (this.valScore) this.valScore.textContent = this.score;
+        if (this.valDots) this.valDots.textContent = this.dotsEaten;
 
-        // Format lives representation
         let livesHTML = '';
         for (let i = 0; i < this.lives; i++) {
             livesHTML += 'C ';
         }
-        this.valLives.textContent = livesHTML || "None 💀";
+        if (this.valLives) this.valLives.textContent = livesHTML || "None 💀";
 
-        // Power mode timer updates
         if (this.frightenedTurns > 0) {
-            this.effectRow.style.display = 'flex';
-            this.valEffectTimer.textContent = `${Math.ceil(this.frightenedTurns / 4)}s`; // Turn scale to seconds mapping
+            if (this.effectRow) this.effectRow.style.display = 'flex';
+            if (this.valEffectTimer) this.valEffectTimer.textContent = `${Math.ceil(this.frightenedTurns / 4)}s`;
         } else {
-            this.effectRow.style.display = 'none';
+            if (this.effectRow) this.effectRow.style.display = 'none';
         }
-
         this.renderMap();
     }
 }
