@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leak Runner — Legal · Disclaimer · License · Terms</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a121c;
+            --card: #121c28;
+            --text: #dce6f0;
+            --muted: #8a9bb0;
+            --accent: #f0b90b;
+            --link: #5dade2;
+            --danger: #e74c5e;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Outfit, system-ui, sans-serif;
+            background: radial-gradient(ellipse at 20% 0%, #1a2a40, var(--bg) 55%);
+            color: var(--text);
+            line-height: 1.55;
+            padding: 28px 16px 48px;
+        }
+        main {
+            max-width: 720px;
+            margin: 0 auto;
+            background: var(--card);
+            border: 1px solid #2a3a50;
+            border-radius: 12px;
+            padding: 28px 26px 36px;
+            box-shadow: 0 12px 40px rgba(0,0,0,.35);
+        }
+        h1 { font-size: 1.45rem; margin: 0 0 8px; color: var(--accent); }
+        h2 { font-size: 1.05rem; margin: 1.6rem 0 .6rem; color: #9ec9ff; }
+        h3 { font-size: .95rem; margin: 1.1rem 0 .4rem; color: #cde; }
+        p, li { color: var(--text); font-size: .92rem; }
+        .meta { color: var(--muted); font-size: .8rem; margin-bottom: 1.2rem; }
+        a { color: var(--link); }
+        ul { padding-left: 1.2rem; }
+        .back {
+            display: inline-block;
+            margin-bottom: 14px;
+            font-size: .85rem;
+            text-decoration: none;
+            border: 1px solid #3a4a60;
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: var(--text);
+        }
+        .back:hover { border-color: var(--accent); color: var(--accent); }
+        .warn {
+            border-left: 3px solid var(--danger);
+            padding: 8px 12px;
+            background: rgba(231, 76, 94, .08);
+            margin: 12px 0;
+            font-size: .88rem;
+        }
+        code { font-family: "Courier Prime", monospace; font-size: .85em; }
+    </style>
+</head>
+<body>
+    <main>
+        <a class="back" href="../index.html">← Back to Leak Runner</a>
+        <h1>Legal · Disclaimer · License · Terms of Service</h1>
+        <p class="meta">Leak Runner / Securithon · XRPL Make Waves prototype · Last updated 2026-07-16<br>
+            Canonical markdown: <a href="./LEGAL.md">LEGAL.md</a> · Code license: <a href="../LICENSE">MIT LICENSE</a></p>
+
+        <div class="warn">
+            Connecting Xaman or using stake/demo modes requires accepting these terms in the game UI.
+            This build may <strong>simulate</strong> ledger flows — treat balances and prize bags as demo data unless a live program says otherwise.
+        </div>
+
+        <h2>1. Disclaimer</h2>
+        <p>THE SOFTWARE IS PROVIDED “AS IS” AND “AS AVAILABLE”, WITHOUT WARRANTY OF ANY KIND. This is an educational / demo arcade prototype. You are solely responsible for your wallet, keys, and any real transactions. Authors are not liable for losses, score disputes, or reliance on on-screen rewards. Marks such as XRPL, XRP, Xaman, and Make Waves belong to their respective owners.</p>
+
+        <h2>2. License &amp; rights of use</h2>
+        <p>Source code is under the <strong>MIT License</strong>. You may use, copy, modify, merge, publish, distribute, sublicense, and sell copies, provided you keep the copyright and permission notice. Fair use of names for commentary and compatible forks is allowed; do not misrepresent official affiliation.</p>
+
+        <h2>3. Terms of Service — good use &amp; fair play</h2>
+        <p>Use Leak Runner only for lawful recreational, educational, or development purposes. Do not abuse stake, channels, scoreboards, or rewards to defraud others.</p>
+
+        <h3>3.1 Prohibited conduct</h3>
+        <p>You must <strong>not</strong> use the Software, names, memos, leaderboards, or related surfaces to:</p>
+        <ul>
+            <li>Incite violence, self-harm, terrorism, or other harmful conduct</li>
+            <li>Engage in hate speech, harassment, or bullying</li>
+            <li>Promote discrimination (race, ethnicity, religion, sex, gender, orientation, disability, age, etc.)</li>
+            <li>Promote racism, xenophobia, or supremacist ideologies</li>
+            <li>Exploit minors, scam, phish, steal credentials, launder funds, or break the law</li>
+            <li>Deploy malware, spam, or attacks against the game or XRPL infrastructure</li>
+            <li>Impersonate the project or ecosystem entities</li>
+        </ul>
+        <p>Violations may lead to bans, score invalidation, and reports to authorities where required.</p>
+
+        <h3>3.2 Wallet consent &amp; scores</h3>
+        <p>Wallet connect requires an explicit <strong>Accept</strong> action. Score text shown in the UI is limited to <strong>10 ASCII characters</strong>. Prototype prize bags may be local/simulated with no guaranteed real-world payout.</p>
+
+        <h2>4. Contact</h2>
+        <p>Use the repository issue tracker for documentation updates. Hosted deployments: contact that operator for legal notices.</p>
+
+        <p class="meta" style="margin-top:2rem">Play fair. Build kindly. © Leak Runner contributors · MIT</p>
+    </main>
+</body>
+</html>

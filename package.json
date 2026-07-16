@@ -1,0 +1,15 @@
+{
+  "name": "leak-runner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Leak Runner — XRPL Make Waves arcade prototype",
+  "scripts": {
+    "test": "node --test --test-force-exit tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

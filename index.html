@@ -3,104 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pac-Man - Web3 Arcade Prototype</title>
-    <!-- Google Fonts -->
+    <title>Leak Runner — XRPL Make Waves Prototype</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
+    <div class="bg-atmosphere" aria-hidden="true"></div>
     <div class="crt-overlay"></div>
     <div class="scanlines"></div>
 
     <div class="app-container">
-        <!-- Header -->
         <header class="app-header">
             <div class="logo">
-                <i class="fa-solid fa-ghost neon-text yellow-text"></i>
-                <span class="retro-title neon-text">PAC-MAN</span>
-                <span class="badge web3-badge">ARCADE L2</span>
+                <div class="logo-mark" aria-hidden="true">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </div>
+                <div class="logo-text">
+                    <span class="retro-title neon-text">LEAK RUNNER</span>
+                    <span class="logo-tagline">Securithon Protocol · Make Waves</span>
+                </div>
+                <span class="badge web3-badge">XRPL MAIN</span>
             </div>
             
             <div class="wallet-bar">
+                <a class="btn btn-legal" id="btn-legal-docs" href="docs/legal.html" target="_blank" rel="noopener noreferrer">
+                    <i class="fa-solid fa-scale-balanced"></i> Legal · ToS
+                </a>
                 <div class="wallet-info" id="wallet-info">
                     <span class="status-indicator disconnected"></span>
-                    <span class="wallet-address">Wallet Disconnected</span>
+                    <span class="wallet-address">Xaman Disconnected</span>
                 </div>
-                <button class="btn btn-primary" id="btn-connect">
-                    <i class="fa-solid fa-wallet"></i> Connect Wallet
+                <button class="btn btn-primary" id="btn-connect" type="button">
+                    <i class="fa-solid fa-qrcode"></i> Connect Xaman
                 </button>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Left Column: Game Panel -->
-            <section class="game-panel">
-                <div class="terminal-container">
-                    <div class="terminal-header">
-                        <div class="terminal-dots">
-                            <span class="dot red"></span>
-                            <span class="dot yellow"></span>
-                            <span class="dot green"></span>
-                        </div>
-                        <div class="terminal-title">PAC-MAN STAGE - BOARD <span id="lbl-level">1</span></div>
-                        <div class="fps-counter">60 FPS</div>
-                    </div>
-                    
-                    <div class="terminal-screen" id="terminal-screen">
-                        <!-- Canvas replacing grid for solid pixels -->
-                        <canvas id="game-canvas" width="580" height="280" style="display: none; background: #000; border-radius: 4px; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></canvas>
-                        
-                        <div class="start-screen-prompt" id="start-prompt">
-                            <p class="blink text-primary">CONNECT YOUR WALLET & INSERT COIN</p>
-                            <p class="subtext">A run costs 0.00015 ETH (1 coin). Earn ETH in real-time by eating dots!</p>
-                            <div class="controls-guide">
-                                <h3>CONTROLS</h3>
-                                <p><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or Arrows: Move Pac-Man</p>
-                                <p><i class="fa-solid fa-gamepad"></i> Gamepad: D-pad / Analog Stick support active</p>
-                            </div>
-                        </div>
-                    </div>
+        <!-- Attract mode: full-lobby TOP 5 scores (idle waiting for player) -->
+        <div class="attract-scores" id="attract-scores" hidden aria-hidden="true">
+            <div class="attract-stars" aria-hidden="true"></div>
+            <div class="attract-topbar">
+                <div class="attract-1up">
+                    <span class="attract-lab">1UP</span>
+                    <span class="attract-num" id="attract-1up">000000</span>
                 </div>
-
-                <div class="action-bar">
-                    <button class="btn btn-success" id="btn-start-run" disabled>
-                        <i class="fa-solid fa-circle-dollar-to-slot"></i> Insert Coin (0.00015 ETH)
-                    </button>
-                    <button class="btn btn-warning" id="btn-claim-exit" disabled>
-                        <i class="fa-solid fa-cash-register"></i> Cash Out & Retreat
-                    </button>
-                    <div class="bypass-control-group">
-                        <button class="btn btn-danger" id="btn-session-keys" disabled style="width: 100%;">
-                            <i class="fa-solid fa-key"></i> Enable Keys
-                        </button>
-                        <label class="bypass-toggle">
-                            <input type="checkbox" id="chk-bypass-web3">
-                            <span class="slider"></span>
-                            <span class="toggle-label">Free Play (Bypass)</span>
-                        </label>
-                    </div>
+                <div class="attract-hi">
+                    <span class="attract-lab">HIGH SCORE</span>
+                    <span class="attract-num" id="attract-hi">000000</span>
                 </div>
-            </section>
+            </div>
+            <div class="attract-logo">
+                <span class="attract-logo-text">LEAK RUNNER</span>
+                <span class="attract-logo-sub">SECURITHON · MAKE WAVES</span>
+            </div>
+            <h2 class="attract-heading">TOP 5 PLAYERS</h2>
+            <div class="attract-table-wrap">
+                <table class="attract-table">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>SCORE</th>
+                            <th>NAME</th>
+                            <th>DROPS</th>
+                            <th>EPOCH</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attract-table-body"></tbody>
+                </table>
+            </div>
+            <p class="attract-credit">PRESS <kbd>S</kbd> · STAKE 0.5 XRP · BOOT NODE</p>
+            <p class="attract-copy">© MAKE WAVES · XRPL</p>
+        </div>
 
-            <!-- Right Column: Combined Stats & Ledger Logs -->
-            <aside class="sidebar-panel">
-                <!-- Combined Stats & Finance Card -->
+        <main class="main-content lobby-columns" id="lobby-main">
+            <!-- Left 40%: menus / info -->
+            <aside class="sidebar-panel lobby-col lobby-col-side">
                 <div class="card stats-card">
                     <div class="stats-header">
-                        <h2 class="card-title-compact"><i class="fa-solid fa-circle-user text-primary"></i> ARCADE STATUS</h2>
+                        <h2 class="card-title-compact"><i class="fa-solid fa-server text-primary"></i> NODE STATUS</h2>
                         <div class="session-keys-status-compact" id="session-key-badge">
-                            <i class="fa-solid fa-shield-halved"></i> Keys Inactive
+                            <i class="fa-solid fa-link-slash"></i> Channel Off
                         </div>
                     </div>
                     
                     <div class="stats-grid">
                         <div class="stat-item">
-                            <span class="stat-label">Pacman NFT:</span>
+                            <span class="stat-label">Node NFT:</span>
                             <span class="stat-value text-secondary" id="val-hero-nft">None</span>
                         </div>
                         <div class="stat-item">
@@ -108,7 +99,7 @@
                             <span class="stat-value text-success" id="val-hero-class">-</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Lives:</span>
+                            <span class="stat-label">Uptime:</span>
                             <span class="stat-value text-danger" id="val-lives" style="font-family: var(--font-retro); font-size: 0.75rem;">-</span>
                         </div>
                         <div class="stat-item">
@@ -116,83 +107,248 @@
                             <span class="stat-value text-warning" id="val-score">0</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Dots Eaten:</span>
+                            <span class="stat-label">Best:</span>
+                            <span class="stat-value text-secondary" id="val-best-score">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Drops:</span>
                             <span class="stat-value text-success" id="val-dots">0</span>
                         </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Swarm:</span>
+                            <span class="stat-value text-primary" id="val-swarm-mode">—</span>
+                        </div>
                         <div class="stat-item" id="effect-row" style="display: none;">
-                            <span class="stat-label text-secondary blink">POWER:</span>
+                            <span class="stat-label text-secondary blink">AUDIT:</span>
                             <span class="stat-value text-secondary blink" id="val-effect-timer">0s</span>
                         </div>
-                        <!-- Native ETH Balance directly inside stats card -->
-                        <div class="stat-item eth-balance-row">
-                            <span class="stat-label"><i class="fa-solid fa-wallet text-warning"></i> Balance:</span>
-                            <span class="stat-value text-info font-bold"><span id="val-rouge-balance">0.000000</span> ETH</span>
+                        <div class="stat-item">
+                            <span class="stat-label">Relic:</span>
+                            <span class="stat-value text-warning" id="val-active-relic">—</span>
                         </div>
-                    </div>
-                    
-                    <div class="inventory-section-compact">
-                        <div class="inventory-slots" id="inventory-slots">
-                            <div class="slot empty" title="Cherry"><i class="fa-solid fa-apple-whole"></i></div>
-                            <div class="slot empty" title="Strawberry"><i class="fa-solid fa-lemon"></i></div>
-                            <div class="slot empty" title="Melon"><i class="fa-solid fa-carrot"></i></div>
+                        <div class="stat-item eth-balance-row">
+                            <span class="stat-label"><i class="fa-solid fa-coins text-warning"></i> XRP:</span>
+                            <span class="stat-value text-info font-bold"><span id="val-rouge-balance">0.000000</span> XRP</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Pending:</span>
+                            <span class="stat-value text-success" id="val-pending-earn">0.0000</span>
                         </div>
                     </div>
 
+                    <div class="prize-bags-section">
+                        <h3 class="palette-title"><i class="fa-solid fa-vault text-warning"></i> PRIZE BAGS</h3>
+                        <div class="prize-bags-total">
+                            <span>Live pool</span>
+                            <strong><span id="val-bag-total">0.000</span> XRP</strong>
+                        </div>
+                        <div class="prize-bags-grid">
+                            <div class="bag-chip"><span>Jackpot</span><b id="val-bag-jackpot">0.000</b></div>
+                            <div class="bag-chip"><span>Top-N</span><b id="val-bag-topn">0.000</b></div>
+                            <div class="bag-chip"><span>Milestones</span><b id="val-bag-milestones">0.000</b></div>
+                            <div class="bag-chip muted"><span>Reserve</span><b id="val-bag-reserve">0.000</b></div>
+                            <div class="bag-chip muted"><span>Dev</span><b id="val-bag-dev">0.000</b></div>
+                        </div>
+                        <div class="prize-epoch-meta">
+                            <span>Epoch <strong id="val-epoch-id">#1</strong></span>
+                            <span>Ends <strong id="val-epoch-ends">—</strong></span>
+                        </div>
+                        <ul class="prize-tier-list" id="prize-tier-list"></ul>
+                    </div>
+                    
+                    <div class="scoreboard-section">
+                        <h3 class="palette-title"><i class="fa-solid fa-trophy text-warning"></i> XRPL SCOREBOARD</h3>
+                        <ol class="score-leaderboard" id="score-leaderboard">
+                            <li class="lb-empty">No ledger scores yet.</li>
+                        </ol>
+                        <h3 class="palette-title hist-title"><i class="fa-solid fa-clock-rotate-left text-secondary"></i> HISTORY</h3>
+                        <ul class="score-history-list" id="score-history-list">
+                            <li class="lb-empty">No historic commits yet.</li>
+                        </ul>
+                    </div>
+
+                    <div class="inventory-section-compact">
+                        <h3 class="palette-title"><i class="fa-solid fa-gem text-secondary"></i> RELIC VAULT</h3>
+                        <div class="inventory-slots" id="inventory-slots">
+                            <div class="slot empty" title="Ripple Shard"><i class="fa-solid fa-gem"></i></div>
+                            <div class="slot empty" title="Hook Glyph"><i class="fa-solid fa-bezier-curve"></i></div>
+                            <div class="slot empty" title="AMM Prism"><i class="fa-solid fa-cubes"></i></div>
+                            <div class="slot empty" title="Validator Crest"><i class="fa-solid fa-award"></i></div>
+                            <div class="slot empty" title="Consensus Orb"><i class="fa-solid fa-circle-nodes"></i></div>
+                        </div>
+                    </div>
+
+                    <div class="relic-roster" id="relic-roster"></div>
+
                     <div class="palette-selector-section">
-                        <h3 class="palette-title"><i class="fa-solid fa-palette text-secondary"></i> COLOR PALETTE THEMES</h3>
+                        <h3 class="palette-title"><i class="fa-solid fa-palette text-secondary"></i> NODE SKIN</h3>
                         <div class="palette-options">
                             <button class="btn-palette active" id="btn-palette-classic" data-palette="classic">
-                                Arcade <span class="badge-free">Free</span>
+                                Ledger <span class="badge-free">Free</span>
                             </button>
                             <button class="btn-palette locked" id="btn-palette-green" data-palette="green">
-                                Game Boy <span class="badge-price" id="lbl-price-green">0.001 ETH</span>
+                                Mainnet <span class="badge-price">1 XRP</span>
                             </button>
                             <button class="btn-palette locked" id="btn-palette-pico" data-palette="pico">
-                                PICO-8 <span class="badge-price" id="lbl-price-pico">0.001 ETH</span>
+                                Devnet <span class="badge-price">1 XRP</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Ledger Logs Card -->
+                <div class="card lore-card">
+                    <h2 class="card-title"><i class="fa-solid fa-book-skull text-danger"></i> EXPLOIT DOSSIER</h2>
+                    <div class="exploit-lore-list" id="exploit-lore-list"></div>
+                </div>
+
                 <div class="card logs-card">
-                    <h2 class="card-title"><i class="fa-solid fa-cubes text-secondary"></i> WEB3 LEDGER LOGS</h2>
+                    <h2 class="card-title"><i class="fa-solid fa-water text-secondary"></i> XRPL LEDGER LOGS</h2>
                     <div class="logs-container" id="logs-container">
-                        <div class="log-entry system">Ready to connect to Web3 node.</div>
+                        <div class="log-entry system">Awaiting Xaman · XRPL mainnet micropayments demo for Make Waves.</div>
                     </div>
                 </div>
             </aside>
+
+            <!-- Right 60%: main game / lobby start -->
+            <section class="game-panel lobby-col lobby-col-main">
+                <div class="terminal-container">
+                    <div class="terminal-header">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <div class="terminal-title">SECURITHON GRID — SECTOR <span id="lbl-level">1</span></div>
+                        <div class="fps-counter">-- FPS</div>
+                    </div>
+                    
+                    <div class="terminal-screen" id="terminal-screen">
+                        <div class="game-stage" id="game-stage" style="display: none;">
+                            <div class="ingame-hud" id="ingame-hud" aria-live="polite">
+                                <div class="hud-chip">
+                                    <span class="hud-label">SCORE</span>
+                                    <span class="hud-value text-warning" id="hud-score">0</span>
+                                </div>
+                                <div class="hud-chip">
+                                    <span class="hud-label">LIVES</span>
+                                    <span class="hud-value text-danger" id="hud-lives">●●●</span>
+                                </div>
+                                <div class="hud-chip hud-tier">
+                                    <span class="hud-label">MAX TIER</span>
+                                    <span class="hud-value text-secondary" id="hud-tier">0.000 XRP</span>
+                                </div>
+                            </div>
+                            <canvas id="game-canvas" width="580" height="340"></canvas>
+                        </div>
+                        
+                        <div class="start-screen-prompt" id="start-prompt">
+                            <div class="start-banner" id="start-banner" aria-live="polite">
+                                <div class="start-banner-track" id="start-banner-track"></div>
+                                <div class="start-banner-dots" id="start-banner-dots"></div>
+                            </div>
+                            <p class="blink text-primary">Stake 0.5 XRP · Boot the Node</p>
+                            <p class="subtext">Earn in-channel · settle on Claim · chase the prize bags.</p>
+                            <div class="start-action-block">
+                                <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game — press S">
+                                    <span class="arcade-start-label"><span class="arcade-s">[S]</span>TART</span>
+                                </button>
+                                <div class="controls-guide">
+                                    <p class="controls-keys">
+                                        <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>
+                                        <span class="controls-sep">/</span>
+                                        <kbd>WASD</kbd>
+                                    </p>
+                                    <p class="controls-pad">
+                                        <i class="fa-solid fa-gamepad" aria-hidden="true"></i>
+                                        Mando supported
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-success" id="btn-start-run" disabled>
+                        <i class="fa-solid fa-bolt"></i> Stake 0.5 XRP · Boot Node
+                    </button>
+                    <button class="btn btn-warning" id="btn-claim-exit" disabled>
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Claim XRP &amp; Exit
+                    </button>
+                    <div class="bypass-control-group">
+                        <button class="btn btn-danger" id="btn-session-keys" disabled style="width: 100%;">
+                            <i class="fa-solid fa-link"></i> Payment Channel
+                        </button>
+                        <label class="bypass-toggle">
+                            <input type="checkbox" id="chk-bypass-web3">
+                            <span class="slider"></span>
+                            <span class="toggle-label">Demo Mode (no XRPL)</span>
+                        </label>
+                    </div>
+                </div>
+            </section>
         </main>
         
-        <!-- Footer -->
         <footer class="app-footer">
-            <p>Pac-Man © 2026 - Decentralized Arcade Experiment.</p>
+            <p>
+                Leak Runner · Securithon · Make Waves ·
+                <a href="docs/legal.html" target="_blank" rel="noopener noreferrer" id="footer-legal-link">Disclaimer · License · ToS</a>
+            </p>
         </footer>
     </div>
 
-    <!-- Modals / Overlays -->
-    <!-- GameOver / Permadeath Modal -->
+    <!-- Terms acceptance required before Xaman connect -->
+    <div class="modal-overlay" id="tos-modal" role="dialog" aria-modal="true" aria-labelledby="tos-title">
+        <div class="modal-content tos-modal-content">
+            <h2 id="tos-title" class="tos-title"><i class="fa-solid fa-scale-balanced text-secondary"></i> Accept Terms</h2>
+            <p class="tos-lead">Before linking Xaman you must accept the Disclaimer, License, and Terms of Service.</p>
+            <ul class="tos-points">
+                <li>Prototype / demo — AS IS; no financial advice</li>
+                <li>MIT rights of use — keep notices; fair use of marks</li>
+                <li>Good use &amp; fair play — no fraud or abuse of rewards</li>
+                <li>No hate, discrimination, racism, or harmful incitement</li>
+            </ul>
+            <p class="tos-doc-link">
+                <a href="docs/legal.html" target="_blank" rel="noopener noreferrer" id="tos-read-full">Read full Legal · ToS</a>
+            </p>
+            <label class="tos-check">
+                <input type="checkbox" id="chk-tos-agree">
+                <span>I have read and agree to the Disclaimer, License, and Terms of Service</span>
+            </label>
+            <div class="tos-actions">
+                <button type="button" class="btn btn-primary" id="btn-tos-accept" disabled>
+                    <i class="fa-solid fa-check"></i> Accept &amp; Connect Xaman
+                </button>
+                <button type="button" class="btn btn-danger" id="btn-tos-decline">
+                    Decline
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="gameover-modal">
         <div class="modal-content text-center">
-            <h1 class="neon-text text-danger font-retro blink">GAME OVER</h1>
+            <h1 class="neon-text text-danger font-retro blink">NODE SLASHED</h1>
             <div class="permadeath-avatar">
                 <i class="fa-solid fa-skull-crossbones text-danger"></i>
                 <div class="burn-animation" id="burn-anim"></div>
             </div>
-            <h3 class="text-danger">PERMADEATH ACTIVATED!</h3>
-            <p>Your Pacman NFT <strong id="lbl-burned-hero">#0</strong> has been **BURNED** from the smart contract.</p>
-            <p class="subtext">All statistics and your token ID have been permanently destroyed on-chain.</p>
+            <h3 class="text-danger">UPTIME COLLAPSED — NFT BURN</h3>
+            <p>Your Node NFT <strong id="lbl-burned-hero">#0</strong> was <strong class="text-danger">BURNED</strong> via XRPL <code>NFTokenBurn</code>.</p>
+            <p class="subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the grid.</p>
             <div class="score-summary">
+                <p class="text-secondary" id="lbl-record-flag" style="display:none">★ NEW LEDGER RECORD</p>
                 <p>Final Score: <span id="lbl-final-score" class="text-warning">0</span></p>
-                <p>Dots Eaten: <span id="lbl-final-level" class="text-success">0</span></p>
+                <p>Best (XRPL): <span id="lbl-best-score" class="text-secondary">0</span></p>
+                <p>Drops Harvested: <span id="lbl-final-level" class="text-success">0</span></p>
             </div>
-            <button class="btn btn-danger" id="btn-close-gameover">Close Run Session</button>
+            <button class="btn btn-danger" id="btn-close-gameover">Close Session</button>
         </div>
     </div>
 
-    <!-- Application Scripts -->
-    <script src="audio.js?v=2"></script>
-    <script src="blockchain.js?v=2"></script>
-    <script src="game.js?v=2"></script>
+    <script src="score-format.js?v=23"></script>
+    <script src="audio.js?v=23"></script>
+    <script src="blockchain.js?v=23"></script>
+    <script src="game.js?v=23"></script>
 </body>
 </html>
