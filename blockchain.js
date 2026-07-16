@@ -2,8 +2,11 @@
  * XRPL Ledger Simulator for Leak Runner (blockchain.js)
  * Simulates Xaman wallet connect, XRP stake/consume/reward flows,
  * Payment Channels for drop micropayouts, and NFTokenBurn on slash.
- * Demo layer for XRPL Make Waves — not a live mainnet client yet.
+ * Demo layer built for XRPL experiments — not a live mainnet client yet.
  */
+
+const REPO_URL = 'https://github.com/CuevazaArt/ascii-crawler-web3';
+const REPO_LABEL = 'github.com/CuevazaArt/ascii-crawler-web3';
 
 const XRPL = {
     ENTRY_STAKE: 0.5,        // XRP to boot a node run
@@ -62,8 +65,8 @@ class Web3Simulator {
         this._bannerIndex = 0;
         this._attractTimer = null;
         this._attractVisible = false;
-        this._attractIdleMs = 12000;
-        this._attractShowMs = 7000;
+        this._attractIdleMs = 36000;  // lobby idle before scores takeover (3× prior 12s)
+        this._attractShowMs = 21000;  // scores screen duration (3× prior 7s)
 
         this.walletInfo = document.getElementById('wallet-info');
         this.walletAddressEl = document.querySelector('.wallet-address');
@@ -260,7 +263,7 @@ class Web3Simulator {
         this.sessionPendingEarn = this.roundXrp(this.sessionPendingEarn + amount);
         const pendingEl = document.getElementById('val-pending-earn');
         if (pendingEl) pendingEl.textContent = this.sessionPendingEarn.toFixed(4);
-        // Quiet channel: only occasional proof log (Make Waves friendly, not spam)
+        // Quiet channel: only occasional proof log (demo-friendly, not spam)
         this._pendingMoves = (this._pendingMoves || 0) + 1;
         if (this._pendingMoves >= 12 && this.hasSessionKeys) {
             this._pendingMoves = 0;
@@ -497,7 +500,7 @@ class Web3Simulator {
         }).join('');
     }
 
-    // ——— Start-screen cycling banner (scores + Make Waves / XRPL ads) ———
+    // ——— Start-screen cycling banner (scores + purpose / ledger tips) ———
 
     buildBannerSlides() {
         const j = this.economy.bags.jackpot;
@@ -512,9 +515,9 @@ class Web3Simulator {
         return [
             {
                 kind: 'prize',
-                kicker: 'PRIZE POOL LIVE',
+                kicker: 'PRIZE POOL',
                 title: `${total.toFixed(2)} XRP`,
-                body: `Jackpot ${maxTier} → Epoch #1 · ends ${new Date(this.economy.epochEnds).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                body: `Jackpot ${maxTier} → Epoch #1 · ends ${new Date(this.economy.epochEnds).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · demo bags unless live`
             },
             {
                 // Retro attract-mode SCORE TABLE (Juno First–style), Leak Runner lore
@@ -524,10 +527,16 @@ class Web3Simulator {
                 maxTier
             },
             {
+                kind: 'ad',
+                kicker: 'GRID SWARM',
+                title: 'Penguin Foes',
+                body: 'Bitwaddle · Hatglide · Slipkernel · Sourceflip — original chubby foes'
+            },
+            {
                 kind: 'score',
                 kicker: 'ALL-TIME BEST',
                 title: top ? `${this.formatScoreDisplay(top.score)} pts` : '—',
-                body: top ? `${top.account} leads the XRPL scoreboard` : 'Be the first ScoreCommit on the ledger'
+                body: top ? `${top.account} leads the scoreboard` : 'Be the first ScoreCommit on the ledger'
             },
             {
                 kind: 'score',
@@ -543,13 +552,13 @@ class Web3Simulator {
             },
             {
                 kind: 'ad',
-                kicker: 'SPONSORED',
-                title: 'Make Waves',
-                body: 'Build on XRPL · ship consumer apps · Leak Runner is a Make Waves arcade prototype'
+                kicker: 'PURPOSE',
+                title: 'XRPL demo',
+                body: 'Built for XRPL experiments · Demo Mode is simulated · live mainnet may charge real XRP · not an official product'
             },
             {
                 kind: 'ad',
-                kicker: 'POWERED BY',
+                kicker: 'BUILT ON',
                 title: 'XRP Ledger',
                 body: 'Payment Channels · micropayouts · Xaman wallet — settle skill, not spam'
             }
@@ -575,9 +584,33 @@ class Web3Simulator {
                         <li><i class="st-icon st-mystery"></i><span class="st-dots"></span><span class="st-pts st-mystery-pts">MYSTERY</span></li>
                     </ul>
                 </div>
-                <p class="scoretable-foot">MAX TIER #1 · ${maxTier} XRP · © MAKE WAVES · XRPL</p>
+                <p class="scoretable-foot">MAX TIER #1 · ${maxTier} XRP · © 2026 LEAK RUNNER</p>
+                <p class="scoretable-disclaimer">FOES: BITWADDLE · HATGLIDE · SLIPKERNEL · SOURCEFLIP · <a href="docs/legal.html" target="_blank" rel="noopener noreferrer">Legal · ToS</a></p>
+                <p class="scoretable-repo"><a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">${REPO_LABEL}</a></p>
             </article>
         `;
+    }
+
+    advanceBannerSlide(delta = 1) {
+        const slides = this.buildBannerSlides();
+        if (!slides.length) return;
+        const n = slides.length;
+        this._bannerIndex = ((this._bannerIndex + delta) % n + n) % n;
+        this.refreshBannerSlides();
+        this.resetBannerCycleTimer();
+    }
+
+    resetBannerCycleTimer() {
+        if (this._bannerTimer) clearInterval(this._bannerTimer);
+        this._bannerTimer = setInterval(() => {
+            const prompt = document.getElementById('start-prompt');
+            if (prompt && prompt.style.display === 'none') return;
+            if (this._attractVisible) return;
+            const slides = this.buildBannerSlides();
+            if (!slides.length) return;
+            this._bannerIndex = (this._bannerIndex + 1) % slides.length;
+            this.refreshBannerSlides();
+        }, 4500);
     }
 
     refreshBannerSlides() {
@@ -586,7 +619,27 @@ class Web3Simulator {
         const slides = this.buildBannerSlides();
         const banner = document.getElementById('start-banner');
         const active = slides[this._bannerIndex % slides.length];
-        if (banner) banner.classList.toggle('tall', active?.kind === 'scoretable');
+        if (banner) {
+            banner.classList.toggle('tall', active?.kind === 'scoretable');
+            banner.title = 'Click to next slide';
+            banner.setAttribute('role', 'button');
+            banner.setAttribute('tabindex', '0');
+            banner.setAttribute('aria-label', 'Banner carousel — click or press Enter for next slide');
+            if (!banner._bannerClickBound) {
+                banner._bannerClickBound = true;
+                banner.addEventListener('click', (e) => {
+                    if (e.target.closest('a, button, .banner-dot')) return;
+                    e.preventDefault();
+                    this.advanceBannerSlide(1);
+                });
+                banner.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        this.advanceBannerSlide(1);
+                    }
+                });
+            }
+        }
 
         track.innerHTML = slides.map((s, i) => {
             const on = i === this._bannerIndex % slides.length;
@@ -604,9 +657,11 @@ class Web3Simulator {
                 `<button type="button" class="banner-dot${i === this._bannerIndex % slides.length ? ' active' : ''}" data-i="${i}" aria-label="Slide ${i + 1}"></button>`
             ).join('');
             dots.querySelectorAll('.banner-dot').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
                     this._bannerIndex = Number(btn.dataset.i) || 0;
                     this.refreshBannerSlides();
+                    this.resetBannerCycleTimer();
                 });
             });
         }
@@ -614,15 +669,7 @@ class Web3Simulator {
 
     startBannerCycle() {
         this.refreshBannerSlides();
-        if (this._bannerTimer) clearInterval(this._bannerTimer);
-        this._bannerTimer = setInterval(() => {
-            const prompt = document.getElementById('start-prompt');
-            if (prompt && prompt.style.display === 'none') return;
-            if (this._attractVisible) return;
-            const slides = this.buildBannerSlides();
-            this._bannerIndex = (this._bannerIndex + 1) % slides.length;
-            this.refreshBannerSlides();
-        }, 4500);
+        this.resetBannerCycleTimer();
     }
 
     // ——— Full-lobby attract: Gaplus-style TOP 5 while waiting for a player ———
@@ -630,35 +677,40 @@ class Web3Simulator {
     padScore(n) {
         const fmt = typeof formatScoreText === 'function' ? formatScoreText : null;
         if (fmt) return fmt(n, { pad: 6 });
-        return String(Math.max(0, Math.floor(Number(n) || 0))).padStart(6, '0').slice(0, 10);
+        return String(Math.max(0, Math.floor(Number(n) || 0))).padStart(6, '0').slice(0, 12);
     }
 
     attractName(account) {
         if (typeof formatScoreLabel === 'function') {
-            const label = formatScoreLabel(String(account || 'NODE').replace(/^r/, ''));
-            return label.slice(0, 6).padEnd(6, 'X');
+            return formatScoreLabel(String(account || 'NODE').replace(/^r/, ''));
         }
         const raw = String(account || 'NODE').replace(/^r/, '').toUpperCase();
         const alnum = raw.replace(/[^A-Z0-9]/g, '');
-        return (alnum.slice(0, 6) || 'NODE').padEnd(6, 'X');
+        return (alnum || 'NODE').slice(0, 12);
     }
 
     formatScoreDisplay(n) {
         if (typeof formatScoreText === 'function') return formatScoreText(n);
-        return String(Math.max(0, Math.floor(Number(n) || 0))).slice(0, 10);
+        return String(Math.max(0, Math.floor(Number(n) || 0))).slice(0, 12);
     }
 
     buildAttractRows() {
-        const board = this.scoreboard.board.slice(0, 5);
+        // Top 4 from ledger / fillers; last visible credit slot reserved for creator nick
+        const board = this.scoreboard.board.slice(0, 4);
         const placeholders = [
             { score: 50000, account: 'LEAKRU', drops: 240, epoch: 1 },
             { score: 42000, account: 'XAMAN', drops: 210, epoch: 1 },
             { score: 35000, account: 'MAKEWV', drops: 180, epoch: 1 },
-            { score: 28000, account: 'XRPL', drops: 150, epoch: 1 },
-            { score: 21000, account: 'NODE', drops: 120, epoch: 1 }
+            { score: 28000, account: 'XRPL', drops: 150, epoch: 1 }
         ];
+        const credit = {
+            score: 13370,
+            account: 'CUEVAZAART',
+            drops: 77,
+            epoch: this.economy?.epochId ?? 1
+        };
         const rows = [];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 4; i++) {
             const src = board[i] || placeholders[i];
             rows.push({
                 score: src.score,
@@ -667,6 +719,12 @@ class Web3Simulator {
                 epoch: src.epoch ?? this.economy?.epochId ?? 1
             });
         }
+        rows.push({
+            score: credit.score,
+            name: this.attractName(credit.account),
+            drops: credit.drops,
+            epoch: credit.epoch
+        });
         return rows;
     }
 
@@ -744,7 +802,10 @@ class Web3Simulator {
         const el = document.getElementById('attract-scores');
         if (el && !el._attractBound) {
             el._attractBound = true;
-            el.addEventListener('click', () => this.hideAttractScreen(true));
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('a')) return; // keep GitHub / legal links usable
+                this.hideAttractScreen(true);
+            });
         }
         this.hideAttractScreen(true);
     }
@@ -902,7 +963,7 @@ class Web3Simulator {
             this.log('Tick the Terms checkbox to continue.', 'alert');
             return;
         }
-        try { localStorage.setItem('leakrunner_tos_v1', 'accepted'); } catch (_) {}
+        try { localStorage.setItem('leakrunner_tos_v2', 'accepted'); } catch (_) {}
         if (window.retroAudio) window.retroAudio.playClick();
         this.closeTermsModal();
         this.log('Terms accepted — opening Xaman sign-in…', 'event');
@@ -954,7 +1015,7 @@ class Web3Simulator {
     performXamanConnect() {
         if (this.isConnected) return;
 
-        this.log("Opening Xaman sign-in payload (XRPL mainnet)...");
+        this.log("Opening Xaman sign-in payload (wallet connect)...");
         if (this.btnConnect) this.btnConnect.disabled = true;
 
         setTimeout(() => {
@@ -1070,21 +1131,21 @@ class Web3Simulator {
         }
         if (window.retroAudio) window.retroAudio.playClick();
 
-        this.log(`Staking ${XRPL.ENTRY_STAKE} XRP Payment to Leak Runner escrow (consume-to-play)...`, 'system');
+        this.log(`Staking ${XRPL.ENTRY_STAKE} XRP (consume-to-play) · simulator until live mainnet hook...`, 'system');
         this.btnStartRun.disabled = true;
 
         const executeRun = () => {
             this.debitXrp(XRPL.ENTRY_STAKE);
             const { hash, block } = this.getNewTxHash();
-            this.log(`Payment OK · stake ${XRPL.ENTRY_STAKE} XRP · ledger ${block} · ${hash.slice(0, 14)}...`, 'tx');
-            this.log('Escrow locked · channel accrues in-run · settle on Claim/Exit.', 'event');
+            this.log(`Stake recorded · ${XRPL.ENTRY_STAKE} XRP · demo ledger ${block} · ${hash.slice(0, 14)}...`, 'tx');
+            this.log('Escrow locked · channel accrues in-run · settle on Claim/Exit. Live mainnet may charge real XRP.', 'event');
             bootRun(true);
         };
 
         if (this.hasSessionKeys) {
             executeRun();
         } else {
-            this.log("Awaiting Xaman push approval for stake Payment...", 'system');
+            this.log("Awaiting Xaman approval for stake (review amount before signing when live)...", 'system');
             setTimeout(executeRun, 1200);
         }
     }
@@ -1099,8 +1160,11 @@ class Web3Simulator {
     eatGhostTransaction(ghostId) {
         if (!this.gameActive) return;
         if (window.retroAudio) window.retroAudio.playEatGhost();
-        const names = ["Reentrancy", "Frontrunner", "FlashLoan", "Sybil"];
-        const name = names[ghostId] || `Exploit#${ghostId}`;
+        const roster = (typeof GRID_PENGUINS !== 'undefined' && GRID_PENGUINS) || null;
+        const names = roster
+            ? roster.map(d => d.name)
+            : ['Bitwaddle', 'Hatglide', 'Slipkernel', 'Sourceflip'];
+        const name = names[ghostId] || `Penguin#${ghostId}`;
         this.accrueChannelReward(XRPL.EXPLOIT_SLASH, `slash:${name}`);
         this.log(`Audit slash ${name} · +${XRPL.EXPLOIT_SLASH} XRP accrued (settle later).`, 'event');
     }
@@ -1230,14 +1294,14 @@ class Web3Simulator {
         if (finalDrops) finalDrops.textContent = String(drops);
         if (bestEl) bestEl.textContent = this.formatScoreDisplay(best);
         if (recordEl) {
-            recordEl.textContent = isRecord ? '★ NEW LEDGER RECORD' : '';
+            recordEl.textContent = isRecord ? '★ NEW HIGH SCORE' : '';
             recordEl.style.display = isRecord ? 'block' : 'none';
         }
         const sub = modal.querySelector('.subtext');
         if (sub && demo) {
-            sub.textContent = 'Demo Mode — score persisted locally as XRPL ScoreCommit cache.';
+            sub.textContent = 'DEMO MODE — SCORE SAVED LOCALLY AS XRPL SCORECOMMIT CACHE.';
         } else if (sub) {
-            sub.textContent = 'Stake fresh XRP from Xaman to mint a new Node and rejoin the grid.';
+            sub.textContent = 'STAKE XRP · MINT A NEW NODE · REJOIN THE GRID.';
         }
         modal.style.display = 'flex';
         this.pauseAttractCycle();
@@ -1285,7 +1349,7 @@ class Web3Simulator {
         slotsEl.innerHTML = '';
         
         const itemsInfo = {
-            1: { name: "Ripple Shard", icon: "fa-gem", class: "equipped" },
+            1: { name: "Spray Shard", icon: "fa-gem", class: "equipped" },
             2: { name: "Hook Glyph", icon: "fa-bezier-curve", class: "equipped" },
             3: { name: "AMM Prism", icon: "fa-cubes", class: "equipped" },
             4: { name: "Validator Crest", icon: "fa-award", class: "equipped" },
@@ -1399,8 +1463,8 @@ class Web3Simulator {
         };
 
         updateBtn(this.btnPaletteClassic, "classic", "Ledger");
-        updateBtn(this.btnPaletteGreen, "green", "Mainnet");
-        updateBtn(this.btnPalettePico, "pico", "Devnet");
+        updateBtn(this.btnPaletteGreen, "green", "Verdant");
+        updateBtn(this.btnPalettePico, "pico", "Circuit");
     }
 }
 

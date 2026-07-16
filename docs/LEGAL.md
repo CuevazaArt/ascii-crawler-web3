@@ -1,24 +1,27 @@
 # Leak Runner — Legal: Disclaimer, License & Terms of Service
 
 **Last updated:** 2026-07-16  
-**Product:** Leak Runner (Securithon Protocol) — XRPL Make Waves arcade prototype  
+**Product:** Leak Runner (Securithon Protocol) — arcade experience built for XRPL consumer-app experiments  
+**Repository:** [https://github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)  
 **Related files:** [LICENSE](../LICENSE) · [legal.html](./legal.html) (in-game readable copy)
 
-By connecting a wallet (including Xaman), staking demo XRP, or otherwise using this software, you acknowledge that you have read and agree to this document.
+By connecting a wallet (including Xaman), staking or paying XRP, enabling Demo Mode, or otherwise using this software, you acknowledge that you have read and agree to this document.
 
 ---
 
 ## 1. Disclaimer (no warranty / prototype status)
 
-1.1. This project is an **educational and demonstration prototype** for Make Waves / XRPL consumer-app experiments. Ledger interactions shown in the UI may be **simulated** and are **not** guaranteed to broadcast real mainnet transactions unless explicitly stated in a future release.
+1.1. This project is an **educational / entertainment prototype** built for XRPL consumer-app experiments. Builds may run in **Demo Mode** (simulated balances) or against **XRPL mainnet / other networks** where **real XRP can be charged, transferred, locked, burned, or spent**. Treat on-screen balances, prize bags, and rewards as **non-binding** unless a live deployment operator states otherwise in writing.
 
 1.2. THE SOFTWARE IS PROVIDED **“AS IS”** AND **“AS AVAILABLE”**, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
 
-1.3. Digital assets, including XRP, are volatile. You may lose value. Nothing in this game constitutes financial, investment, legal, or tax advice. You are solely responsible for your wallet, keys, and transactions.
+1.3. Digital assets, including XRP, are volatile. You may **lose some or all** XRP you stake, spend, or send. Nothing in this game constitutes financial, investment, legal, tax, or gambling advice. You are solely responsible for your wallet, keys, seed phrases, device security, and every transaction you authorize.
 
-1.4. Authors, contributors, and affiliates are **not liable** for any direct, indirect, incidental, special, consequential, or exemplary damages arising from use of the Software, inability to use it, or reliance on scores, prize bags, epoch rewards, or on-screen balances.
+1.4. Authors, contributors, hosts, and affiliates are **not liable** for any direct, indirect, incidental, special, consequential, or exemplary damages arising from use of the Software, inability to use it, network fees, failed or delayed ledger submissions, bugs, score disputes, prize bags, epoch rewards, on-screen balances, or **loss of XRP**.
 
-1.5. Trademarks (including XRPL, XRP, Xaman, and Make Waves marks belonging to their respective owners) are used for descriptive interoperability only. This project is **not** an official product of Ripple, XRPL Foundation, or Xumm/Xaman unless separately stated.
+1.5. Third-party marks (including XRPL, XRP, Xaman, and related marks belonging to their respective owners) appear only for descriptive interoperability. This project is **not** an official product of Ripple, the XRPL Foundation, or Xumm/Xaman unless separately stated.
+
+1.6. **Original characters.** In-game chubby penguin foes use **original invented names** (Bitwaddle, Hatglide, Slipkernel, Sourceflip) and original sprites. Leak Runner is **not affiliated with, endorsed by, or sponsored by** the Linux kernel project, the Linux Foundation, Larry Ewing’s Tux mascot artwork, or any Linux distribution or its trademark holders (including but not limited to Canonical Ltd., Red Hat / IBM, Software in the Public Interest, or Arch Linux). Any resemblance to other brands is coincidental and does not imply partnership.
 
 ---
 
@@ -38,7 +41,7 @@ By connecting a wallet (including Xaman), staking demo XRP, or otherwise using t
 
 ### 3.1 Good use & fair play
 
-You agree to use Leak Runner only for lawful, recreational, educational, or development purposes consistent with a skill-based arcade demo. You will not abuse stake, channel, scoreboard, or reward mechanics to defraud others or the operators of any live deployment.
+You agree to use Leak Runner only for lawful, recreational, educational, or development purposes consistent with a skill-based arcade experience. You will not abuse stake, channel, scoreboard, or reward mechanics to defraud others or the operators of any live deployment.
 
 ### 3.2 Prohibited conduct (no harmful / hateful use)
 
@@ -52,19 +55,30 @@ You must **not** use the Software, related chats, leaderboards, names, memos, or
 - Scam, phish, social-engineer, or steal wallets / credentials
 - Launder funds, evade sanctions, or otherwise violate applicable law
 - Deploy malware, spam bots, or denial-of-service against the game or XRPL infrastructure
-- Impersonate the project, Make Waves organizers, or XRPL ecosystem entities
+- Impersonate the project or XRPL ecosystem entities
 
 Violations may result in denial of service, score invalidation, ban from deployments, and referral to competent authorities where required by law.
 
 ### 3.3 Wallet connection & consent
 
-Connecting Xaman (or any wallet) requires **explicit acceptance** of this Disclaimer, License summary, and Terms. Acceptance is logged locally for the client session/version. You may withdraw by disconnecting and ceasing use; on-chain effects already submitted cannot be unilaterally reversed by this demo UI.
+Connecting Xaman (or any wallet) requires **explicit acceptance** of this Disclaimer, License summary, and Terms. Acceptance may be logged locally for the client session/version. You may withdraw by disconnecting and ceasing use; **on-chain effects already submitted cannot be unilaterally reversed** by this UI.
 
-### 3.4 Scores & prize bags
+### 3.4 Mainnet XRP charges, fees & irreversibility
 
-Scores displayed in-game are capped for display to **10 ASCII characters**. Leaderboards and prize bags in the prototype may be local/simulated. No guarantee of real-world payout exists unless a separate, binding program announces otherwise.
+When a deployment uses **XRPL mainnet** (or another live network):
 
-### 3.5 Governing sense
+- **Real XRP may be charged** for entry stakes, skins, channel funding, burns, settlements, micropayments, and related gameplay or operator fees shown in the UI or wallet payload.
+- **Network fees** (and any failed, stuck, or partially applied transactions) may still cost XRP. You alone approve each payload in your wallet (e.g. Xaman); **read the amount and destination before signing**.
+- Ledger transactions are generally **final and irreversible**. There is **no guaranteed refund** for stakes consumed, NFTs burned, fees paid, or XRP lost to gameplay, bugs, latency, or user error, unless the deployment operator expressly offers one.
+- **Demo Mode** (when enabled) is for local / simulated play and does **not** authorize live mainnet charges; switching out of Demo Mode may enable real payments.
+- **No guaranteed payout.** Scores, prize bags, epoch boards, and “earn” displays may be promotional, capped, delayed, clawed back for abuse, or unpaid. Past results do not predict future returns.
+- You are responsible for complying with **laws in your jurisdiction** (including age, consumer, and digital-asset rules). Do not use the Software where such payments or play are illegal for you.
+
+### 3.5 Scores & prize bags
+
+Scores displayed in-game are capped for display to **12 ASCII characters**. Leaderboards and prize bags may be local, simulated, or operator-managed. No guarantee of real-world payout exists unless a separate, binding program announces otherwise.
+
+### 3.6 Governing sense
 
 If any clause is unenforceable, the remainder stays in effect. These terms do not limit mandatory consumer rights that cannot be waived under your local law.
 
@@ -72,8 +86,12 @@ If any clause is unenforceable, the remainder stays in effect. These terms do no
 
 ## 4. Contact / notices
 
-Project issues and documentation updates: use the repository issue tracker. For legal notices regarding a hosted deployment, contact the operator of that deployment.
+Project source, issues, and documentation updates:  
+[https://github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)
+
+For legal notices regarding a hosted deployment, contact the operator of that deployment.
 
 ---
 
-*Leak Runner · Securithon · Make Waves prototype — play fair, build kindly.*
+*© 2026 Leak Runner · Securithon · built for XRPL demos — play fair, build kindly.*  
+*[github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)*

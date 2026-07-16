@@ -1,24 +1,32 @@
 /**
  * Leak Runner Game Engine (game.js)
- * Securithon Node vs Exploits — XRPL Make Waves arcade.
+ * Securithon Node vs Exploits — XRPL arcade demo.
  * Drops, Audit Certs, Ledger Relics (IP fruit-replacements), exploit AI.
  */
 
 /** Ledger Relics — original IP collectibles (not arcade fruit clones). */
 const LEDGER_RELICS = [
-    { id: 1, key: 'ripple',   name: 'Ripple Shard',     score: 100,  xrp: 0.002, dropsAt: 20,  color: '#5dade2', accent: '#85c1e9' },
+    { id: 1, key: 'spray',    name: 'Spray Shard',      score: 100,  xrp: 0.002, dropsAt: 20,  color: '#5dade2', accent: '#85c1e9' },
     { id: 2, key: 'hook',     name: 'Hook Glyph',       score: 300,  xrp: 0.005, dropsAt: 50,  color: '#af7ac5', accent: '#d2b4de' },
     { id: 3, key: 'amm',      name: 'AMM Prism',        score: 500,  xrp: 0.010, dropsAt: 85,  color: '#58d68d', accent: '#abebc6' },
     { id: 4, key: 'validator',name: 'Validator Crest',  score: 700,  xrp: 0.015, dropsAt: 120, color: '#f4d03f', accent: '#f9e79f' },
     { id: 5, key: 'consensus',name: 'Consensus Orb',    score: 1000, xrp: 0.025, dropsAt: 160, color: '#e74c3c', accent: '#f5b7b1' }
 ];
 
-const EXPLOIT_LORE = [
-    { name: 'Reentrancy', role: 'Recursive drain', blurb: 'Locks onto your vault coords and never lets go.' },
-    { name: 'Frontrunner', role: 'Mempool sniper', blurb: 'Predicts four steps ahead of The Node.' },
-    { name: 'FlashLoan', role: 'Vector pivot', blurb: 'Warps using Reentrancy as a leverage fulcrum.' },
-    { name: 'Sybil', role: 'Identity swarm', blurb: 'Closes in from afar, scatters when you stare it down.' }
+/**
+ * Original chubby penguin foes (invented names).
+ * Shared with banners, lore panel, and slash logs.
+ */
+const GRID_PENGUINS = [
+    { name: 'Bitwaddle', role: 'Friendly waddler', blurb: 'Warm smile, stubborn chase — locks onto your vault and never lets go.' },
+    { name: 'Hatglide', role: 'Hat-tip hunter', blurb: 'Predicts four flaps ahead of The Node.' },
+    { name: 'Slipkernel', role: 'Steady slide', blurb: 'Warps using Bitwaddle as a belly-slide fulcrum.' },
+    { name: 'Sourceflip', role: 'DIY dash', blurb: 'Closes in from afar, scatters when you stare it down.' }
 ];
+const EXPLOIT_LORE = GRID_PENGUINS;
+if (typeof window !== 'undefined') {
+    window.GRID_PENGUINS = GRID_PENGUINS;
+}
 
 class GameEngine {
     constructor() {
@@ -83,9 +91,11 @@ class GameEngine {
                 wallLo: '#0a2870',
                 dot: '#ffe14d',
                 pellet: '#00ffb7',
-                player: '#ffff00',
-                playerHi: '#ffff66',
-                ghosts: ['#ff0000', '#ff00ff', '#00ffff', '#ff8c00'],
+                // Node = electric lemon (cool yellow); Sybil = vermillion (no amber overlap)
+                player: '#fff200',
+                playerHi: '#ffffa8',
+                playerLo: '#e6c800',
+                ghosts: ['#ff0000', '#ff00ff', '#00ffff', '#ff2f00'],
                 frightened: '#8b6cff'
             },
             green: {
@@ -95,9 +105,10 @@ class GameEngine {
                 wallLo: '#064020',
                 dot: '#c8ff3d',
                 pellet: '#00ff66',
-                player: '#ffff00',
-                playerHi: '#ffff66',
-                ghosts: ['#ff0000', '#00ff66', '#00ffff', '#ffaa00'],
+                player: '#fff200',
+                playerHi: '#ffffa8',
+                playerLo: '#e6c800',
+                ghosts: ['#ff0000', '#00ff66', '#00ffff', '#ff2f00'],
                 frightened: '#33a0ff'
             },
             pico: {
@@ -107,9 +118,10 @@ class GameEngine {
                 wallLo: '#701040',
                 dot: '#ffd0a0',
                 pellet: '#00ff55',
-                player: '#ffff00',
-                playerHi: '#ffff88',
-                ghosts: ['#ff0040', '#ff00aa', '#00e8ff', '#ff9900'],
+                player: '#fff45a',
+                playerHi: '#ffffb0',
+                playerLo: '#e6c800',
+                ghosts: ['#ff0040', '#ff00aa', '#00e8ff', '#ff2f55'],
                 frightened: '#b899ff'
             }
         };
@@ -132,12 +144,54 @@ class GameEngine {
         this.gameStage = document.getElementById('game-stage');
         this.hudScore = document.getElementById('hud-score');
         this.hudLives = document.getElementById('hud-lives');
+        this.hudRelics = document.getElementById('hud-relics');
         this.hudTier = document.getElementById('hud-tier');
 
         window.gameEngine = this;
         this.setupKeyboardInput();
         this.setupGamepadInput();
         this.renderLorePanel();
+        this.renderHudRelicSlots();
+        this.updateLivesDisplay(this.lives);
+    }
+
+    /** Open-mouth Node life icon with serrated teeth (original Leak Runner IP). */
+    nodeLifeIconHtml() {
+        return `<span class="hud-node-life" title="Node life" aria-hidden="true">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path fill="#fff200" d="M12 12 L20.4 5.9 A10 10 0 1 0 20.4 18.1 Z"/>
+                <!-- Upper serrated teeth -->
+                <path fill="#fffef5" d="M13.4 11.35 L14.15 9.85 L14.9 11.3 L15.65 9.75 L16.4 11.25 L17.15 9.7 L17.9 11.2 L18.65 9.65 L19.3 11.1"/>
+                <!-- Lower serrated teeth -->
+                <path fill="#fffef5" d="M13.4 12.65 L14.15 14.15 L14.9 12.7 L15.65 14.25 L16.4 12.75 L17.15 14.3 L17.9 12.8 L18.65 14.35 L19.3 12.9"/>
+                <circle cx="10.1" cy="8.3" r="1.3" fill="#1a1200"/>
+            </svg>
+        </span>`;
+    }
+
+    updateLivesDisplay(lives) {
+        const n = Math.max(0, Math.floor(Number(lives) || 0));
+        if (this._livesRendered === n) return;
+        this._livesRendered = n;
+        const html = n > 0
+            ? Array.from({ length: n }, () => this.nodeLifeIconHtml()).join('')
+            : '<span class="hud-lives-empty">0</span>';
+        if (this.hudLives) {
+            this.hudLives.innerHTML = html;
+            this.hudLives.setAttribute('aria-label', `${n} lives`);
+        }
+        if (this.valLives) {
+            this.valLives.innerHTML = html;
+            this.valLives.setAttribute('aria-label', `${n} lives`);
+        }
+    }
+
+    renderHudRelicSlots() {
+        if (!this.hudRelics) return;
+        this.hudRelics.innerHTML = LEDGER_RELICS.map(r => `
+            <span class="hud-relic-gem" data-hud-relic="${r.key}" style="--gem:${r.color}"
+                  title="${r.name} · +${r.score} pts · +${r.xrp} XRP"></span>
+        `).join('');
     }
 
     getMapLayout() {
@@ -183,15 +237,7 @@ class GameEngine {
             </div>
         `).join('');
 
-        const relics = document.getElementById('relic-roster');
-        if (relics) {
-            relics.innerHTML = LEDGER_RELICS.map(r => `
-                <div class="relic-chip" data-relic="${r.key}" title="+${r.xrp} XRP · ${r.score} pts">
-                    <span class="relic-gem" style="--gem:${r.color}"></span>
-                    <span>${r.name}</span>
-                </div>
-            `).join('');
-        }
+        // Relic vault lives in the main HUD only (no sidebar duplicate)
     }
 
     startGame() {
@@ -230,7 +276,7 @@ class GameEngine {
         if (window.retroAudio) window.retroAudio.startMusic(false);
 
         window.web3Simulator.log(
-            'Securithon Node online. Harvest drops, seize Ledger Relics, slash Exploits under Audit Certs.',
+            'Securithon Node online. Harvest drops, seize Ledger Relics — watch for Bitwaddle, Hatglide, Slipkernel & Sourceflip!',
             'system'
         );
 
@@ -299,12 +345,19 @@ class GameEngine {
     }
 
     spawnGhosts() {
-        this.ghosts = [
-            { id: 0, name: 'Reentrancy', ai: 'chase', r: 8, c: 14, startR: 8, startC: 14, dirR: -1, dirC: 0, releaseIn: 0, scatterR: 1, scatterC: 26 },
-            { id: 1, name: 'Frontrunner', ai: 'ambush', r: 9, c: 14, startR: 9, startC: 14, dirR: -1, dirC: 0, releaseIn: 12, scatterR: 1, scatterC: 1 },
-            { id: 2, name: 'FlashLoan', ai: 'vector', r: 7, c: 13, startR: 7, startC: 13, dirR: 0, dirC: -1, releaseIn: 24, scatterR: 15, scatterC: 26 },
-            { id: 3, name: 'Sybil', ai: 'shy', r: 7, c: 15, startR: 7, startC: 15, dirR: 0, dirC: 1, releaseIn: 36, scatterR: 15, scatterC: 1 }
+        const ais = [
+            { ai: 'chase', r: 8, c: 14, dirR: -1, dirC: 0, releaseIn: 0, scatterR: 1, scatterC: 26 },
+            { ai: 'ambush', r: 9, c: 14, dirR: -1, dirC: 0, releaseIn: 12, scatterR: 1, scatterC: 1 },
+            { ai: 'vector', r: 7, c: 13, dirR: 0, dirC: -1, releaseIn: 24, scatterR: 15, scatterC: 26 },
+            { ai: 'shy', r: 7, c: 15, dirR: 0, dirC: 1, releaseIn: 36, scatterR: 15, scatterC: 1 }
         ];
+        this.ghosts = GRID_PENGUINS.map((d, id) => ({
+            id,
+            name: d.name,
+            ...ais[id],
+            startR: ais[id].r,
+            startC: ais[id].c
+        }));
     }
 
     /** Retro START — letter S / on-screen button */
@@ -391,20 +444,20 @@ class GameEngine {
         const upper = facing - mouthHalf;
         const lower = facing + mouthHalf;
 
-        // Glow
+        // Glow — cool lemon, not amber (keeps Node distinct from vermillion Sybil)
         const glow = this.ctx.createRadialGradient(cx, cy, r * 0.15, cx, cy, r * 1.7);
-        glow.addColorStop(0, 'rgba(255,255,0,0.75)');
-        glow.addColorStop(0.5, 'rgba(255,200,0,0.2)');
-        glow.addColorStop(1, 'rgba(255,200,0,0)');
+        glow.addColorStop(0, 'rgba(255,255,120,0.8)');
+        glow.addColorStop(0.5, 'rgba(255,242,0,0.22)');
+        glow.addColorStop(1, 'rgba(255,242,0,0)');
         this.ctx.fillStyle = glow;
         this.ctx.beginPath();
         this.ctx.arc(cx, cy, r * 1.7, 0, Math.PI * 2);
         this.ctx.fill();
 
         const body = this.ctx.createRadialGradient(cx - r * 0.2, cy - r * 0.2, 1, cx, cy, r);
-        body.addColorStop(0, palette.playerHi || '#ffff66');
+        body.addColorStop(0, palette.playerHi || '#ffffa8');
         body.addColorStop(0.55, palette.player);
-        body.addColorStop(1, '#ffb000');
+        body.addColorStop(1, palette.playerLo || '#e6c800');
 
         // Classic chomp disc (open wedge), then overlay zigzag teeth
         this.ctx.fillStyle = body;
@@ -479,132 +532,187 @@ class GameEngine {
     drawExploit(g, gx, gy, size, color, vulnerable) {
         const cx = gx + size / 2;
         const cy = gy + size / 2;
-        const t = Date.now() / 200;
-        const bob = Math.sin(t + g.id) * 1.2;
+        const t = Date.now() / 160;
+        const phase = t + g.id * 1.7;
+        const bob = Math.sin(phase) * 2.1;
+        const sway = Math.sin(phase * 1.25) * 0.12;
+        const flap = Math.sin(phase * 2.4) * 0.35;
+        const hop = Math.abs(Math.sin(phase * 0.9)) * 0.8;
 
-        // Soft shadow
-        this.ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        this.ctx.fillStyle = 'rgba(0,0,0,0.28)';
         this.ctx.beginPath();
-        this.ctx.ellipse(cx, cy + size * 0.42, size * 0.38, 3.2, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(cx, cy + size * 0.46, size * 0.36, 2.8, 0, 0, Math.PI * 2);
         this.ctx.fill();
 
         this.ctx.save();
-        this.ctx.translate(0, bob);
+        this.ctx.translate(cx, cy + bob - hop);
+        this.ctx.rotate(sway);
 
-        // Neon bloom
+        // Soft halo only — keep penguins readable, not neon blobs
         if (!vulnerable) {
-            this.ctx.globalAlpha = 0.5;
+            this.ctx.globalAlpha = 0.1;
             this.ctx.fillStyle = color;
             this.ctx.beginPath();
-            this.ctx.arc(cx, cy, size * 0.72, 0, Math.PI * 2);
+            this.ctx.ellipse(0, size * 0.04, size * 0.5, size * 0.54, 0, 0, Math.PI * 2);
             this.ctx.fill();
             this.ctx.globalAlpha = 1;
             this.ctx.shadowColor = color;
-            this.ctx.shadowBlur = 18;
+            this.ctx.shadowBlur = 3.5;
         }
 
-        if (g.ai === 'chase') this.drawReentrancy(cx, cy, size, color, vulnerable);
-        else if (g.ai === 'ambush') this.drawFrontrunner(cx, cy, size, color, vulnerable);
-        else if (g.ai === 'vector') this.drawFlashLoan(cx, cy, size, color, vulnerable);
-        else this.drawSybil(cx, cy, size, color, vulnerable);
-
+        const lookX = (Math.sign(this.player.x - g.c) || g.dirC) * 0.85;
+        const lookY = (Math.sign(this.player.y - g.r) || g.dirR) * 0.85;
+        this.drawChubbyPenguin(0, 0, size, color, vulnerable, g.id, lookX, lookY, flap, phase);
         this.ctx.shadowBlur = 0;
-
-        // Eyes (scale lightly with size)
-        const eyeSpread = size * 0.18;
-        const eyeR = Math.max(2.2, size * 0.14);
-        const pupilR = Math.max(1, size * 0.06);
-        const eyeY = cy - size * 0.06;
-        this.ctx.fillStyle = vulnerable ? '#ffdddd' : '#fff';
-        this.ctx.beginPath();
-        this.ctx.arc(cx - eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
-        this.ctx.arc(cx + eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.fillStyle = vulnerable ? '#c0392b' : '#111';
-        const lookX = (Math.sign(this.player.x - g.c) || g.dirC) * 0.9;
-        const lookY = (Math.sign(this.player.y - g.r) || g.dirR) * 0.9;
-        this.ctx.beginPath();
-        this.ctx.arc(cx - eyeSpread + lookX, eyeY + lookY, pupilR, 0, Math.PI * 2);
-        this.ctx.arc(cx + eyeSpread + lookX, eyeY + lookY, pupilR, 0, Math.PI * 2);
-        this.ctx.fill();
-
         this.ctx.restore();
     }
 
-    /** Soft round body shared by exploits (no sharp corners). */
-    drawSoftBody(cx, cy, size, color) {
-        const rx = size * 0.48;
-        const ry = size * 0.5;
-        const g = this.ctx.createRadialGradient(cx - rx * 0.25, cy - ry * 0.3, rx * 0.12, cx, cy, rx);
-        g.addColorStop(0, this.shade(color, -0.15));
-        g.addColorStop(0.65, color);
-        g.addColorStop(1, this.shade(color, 0.18));
-        this.ctx.fillStyle = g;
+    /** Chubby colorful penguin foes — original Leak Runner sprites. */
+    drawChubbyPenguin(cx, cy, size, color, vulnerable, variant, lookX, lookY, flap = 0, phase = 0) {
+        const body = vulnerable ? this.shade(color, 0.25) : color;
+        const belly = vulnerable ? '#dfefff' : '#fff8f0';
+        const beak = vulnerable ? '#88aacc' : '#ff9a3c';
+        const foot = vulnerable ? '#6a8aaa' : '#e67e22';
+        const blink = Math.sin(phase * 0.55 + variant) > 0.92;
+
+        // Flapping flippers
+        this.ctx.fillStyle = this.shade(body, 0.12);
         this.ctx.beginPath();
-        this.ctx.ellipse(cx, cy + size * 0.02, rx, ry, 0, 0, Math.PI * 2);
+        this.ctx.ellipse(
+            cx - size * 0.42, cy + size * 0.08,
+            size * 0.14, size * (0.26 + flap * 0.06),
+            -0.45 - flap * 0.35, 0, Math.PI * 2
+        );
         this.ctx.fill();
-        // Rounded hem bumps
         this.ctx.beginPath();
-        const bumps = 4;
-        for (let i = 0; i < bumps; i++) {
-            const x = cx - rx + (rx * 2 * (i + 0.5)) / bumps;
-            this.ctx.moveTo(x, cy + ry * 0.35);
-            this.ctx.arc(x, cy + ry * 0.55, rx / bumps * 0.95, Math.PI, 0, true);
-        }
+        this.ctx.ellipse(
+            cx + size * 0.42, cy + size * 0.08,
+            size * 0.14, size * (0.26 + flap * 0.06),
+            0.45 + flap * 0.35, 0, Math.PI * 2
+        );
         this.ctx.fill();
-    }
 
-    drawReentrancy(cx, cy, size, color) {
-        // Soft orb + gentle loop ring (no hex spikes)
-        this.drawSoftBody(cx, cy, size, color);
-        this.ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-        this.ctx.lineWidth = 1.8;
-        this.ctx.lineCap = 'round';
+        // Fat body
+        const grad = this.ctx.createRadialGradient(
+            cx - size * 0.12, cy - size * 0.1, size * 0.08,
+            cx, cy + size * 0.05, size * 0.55
+        );
+        grad.addColorStop(0, this.shade(body, -0.12));
+        grad.addColorStop(0.7, body);
+        grad.addColorStop(1, this.shade(body, 0.22));
+        this.ctx.fillStyle = grad;
         this.ctx.beginPath();
-        this.ctx.arc(cx, cy + size * 0.06, size * 0.2, 0.35, Math.PI * 1.65);
-        this.ctx.stroke();
-    }
+        this.ctx.ellipse(cx, cy + size * 0.06, size * 0.46, size * 0.52, 0, 0, Math.PI * 2);
+        this.ctx.fill();
 
-    drawFrontrunner(cx, cy, size, color) {
-        // Soft body + rounded chevron cue (no sharp arrow tip)
-        this.drawSoftBody(cx, cy, size, color);
-        this.ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        this.ctx.lineWidth = 2;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        // White belly (slight breathe)
+        const bellyPulse = 1 + Math.sin(phase * 1.1) * 0.03;
+        this.ctx.fillStyle = belly;
         this.ctx.beginPath();
-        this.ctx.moveTo(cx - size * 0.14, cy + size * 0.02);
-        this.ctx.quadraticCurveTo(cx, cy - size * 0.22, cx + size * 0.14, cy + size * 0.02);
-        this.ctx.stroke();
-    }
+        this.ctx.ellipse(cx, cy + size * 0.12, size * 0.26 * bellyPulse, size * 0.34 * bellyPulse, 0, 0, Math.PI * 2);
+        this.ctx.fill();
 
-    drawFlashLoan(cx, cy, size, color) {
-        // Soft body + rounded bolt (no diamond tips)
-        this.drawSoftBody(cx, cy, size, color);
-        this.ctx.strokeStyle = 'rgba(255,255,255,0.65)';
-        this.ctx.lineWidth = 2;
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
+        // Head
+        this.ctx.fillStyle = grad;
         this.ctx.beginPath();
-        this.ctx.moveTo(cx + size * 0.08, cy - size * 0.18);
-        this.ctx.quadraticCurveTo(cx - size * 0.02, cy - size * 0.02, cx + size * 0.1, cy);
-        this.ctx.quadraticCurveTo(cx - size * 0.04, cy + size * 0.08, cx - size * 0.06, cy + size * 0.2);
-        this.ctx.stroke();
-    }
+        this.ctx.ellipse(cx, cy - size * 0.16, size * 0.34, size * 0.3, 0, 0, Math.PI * 2);
+        this.ctx.fill();
 
-    drawSybil(cx, cy, size, color) {
-        // Soft main body + two smaller identity orbs (all round)
-        this.drawSoftBody(cx, cy, size, color);
-        const orbs = [
-            [-size * 0.28, size * 0.12, size * 0.16],
-            [size * 0.28, size * 0.1, size * 0.14]
-        ];
-        orbs.forEach(([ox, oy, rr], i) => {
-            this.ctx.fillStyle = this.shade(color, 0.08 + i * 0.05);
+        // Eyes (blink for sympathy)
+        const eyeSpread = size * 0.13;
+        const eyeY = cy - size * 0.2;
+        const eyeR = Math.max(2.1, size * 0.12);
+        const pupilR = Math.max(1, size * 0.055);
+        if (blink) {
+            this.ctx.strokeStyle = '#222';
+            this.ctx.lineWidth = 1.4;
+            this.ctx.lineCap = 'round';
             this.ctx.beginPath();
-            this.ctx.arc(cx + ox, cy + oy, rr, 0, Math.PI * 2);
+            this.ctx.moveTo(cx - eyeSpread - eyeR * 0.6, eyeY);
+            this.ctx.lineTo(cx - eyeSpread + eyeR * 0.6, eyeY);
+            this.ctx.moveTo(cx + eyeSpread - eyeR * 0.6, eyeY);
+            this.ctx.lineTo(cx + eyeSpread + eyeR * 0.6, eyeY);
+            this.ctx.stroke();
+        } else {
+            this.ctx.fillStyle = '#fff';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
+            this.ctx.arc(cx + eyeSpread, eyeY, eyeR, 0, Math.PI * 2);
             this.ctx.fill();
-        });
+            // shiny catchlight
+            this.ctx.fillStyle = vulnerable ? '#c0392b' : '#111';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - eyeSpread + lookX, eyeY + lookY, pupilR, 0, Math.PI * 2);
+            this.ctx.arc(cx + eyeSpread + lookX, eyeY + lookY, pupilR, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - eyeSpread + lookX - 0.6, eyeY + lookY - 0.6, pupilR * 0.35, 0, Math.PI * 2);
+            this.ctx.arc(cx + eyeSpread + lookX - 0.6, eyeY + lookY - 0.6, pupilR * 0.35, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+
+        // Beak (tiny bob)
+        const beakY = cy - size * 0.06 + Math.sin(phase * 2) * 0.4;
+        this.ctx.fillStyle = beak;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx - size * 0.08, beakY);
+        this.ctx.lineTo(cx + size * 0.08, beakY);
+        this.ctx.lineTo(cx, beakY + size * 0.11);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        // Feet waddle offset
+        const footShift = Math.sin(phase * 1.6) * size * 0.04;
+        this.ctx.fillStyle = foot;
+        this.ctx.beginPath();
+        this.ctx.ellipse(cx - size * 0.16 + footShift, cy + size * 0.52, size * 0.12, size * 0.07, -0.2, 0, Math.PI * 2);
+        this.ctx.ellipse(cx + size * 0.16 - footShift, cy + size * 0.52, size * 0.12, size * 0.07, 0.2, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Variant accent
+        this.ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+        this.ctx.lineWidth = 1.6;
+        this.ctx.lineCap = 'round';
+        if (variant === 0) {
+            // Bitwaddle scarf
+            this.ctx.beginPath();
+            this.ctx.arc(cx, cy + size * 0.02, size * 0.22, 0.2, Math.PI - 0.2);
+            this.ctx.stroke();
+        } else if (variant === 1) {
+            // Hatglide cheeks / brim hint
+            this.ctx.fillStyle = 'rgba(255,255,255,0.35)';
+            this.ctx.beginPath();
+            this.ctx.arc(cx - size * 0.28, cy - size * 0.05, size * 0.06, 0, Math.PI * 2);
+            this.ctx.arc(cx + size * 0.28, cy - size * 0.05, size * 0.06, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.strokeStyle = this.shade(body, 0.35);
+            this.ctx.beginPath();
+            this.ctx.ellipse(cx, cy - size * 0.38, size * 0.28, size * 0.06, 0, 0, Math.PI * 2);
+            this.ctx.stroke();
+        } else if (variant === 2) {
+            // Slipkernel crest
+            this.ctx.fillStyle = this.shade(body, -0.2);
+            this.ctx.beginPath();
+            this.ctx.moveTo(cx, cy - size * 0.48);
+            this.ctx.lineTo(cx - size * 0.08, cy - size * 0.32);
+            this.ctx.lineTo(cx + size * 0.08, cy - size * 0.32);
+            this.ctx.closePath();
+            this.ctx.fill();
+        } else {
+            // Sourceflip bowtie
+            this.ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            this.ctx.beginPath();
+            this.ctx.moveTo(cx, cy + size * 0.02);
+            this.ctx.lineTo(cx - size * 0.12, cy - size * 0.02);
+            this.ctx.lineTo(cx - size * 0.12, cy + size * 0.06);
+            this.ctx.closePath();
+            this.ctx.moveTo(cx, cy + size * 0.02);
+            this.ctx.lineTo(cx + size * 0.12, cy - size * 0.02);
+            this.ctx.lineTo(cx + size * 0.12, cy + size * 0.06);
+            this.ctx.closePath();
+            this.ctx.fill();
+        }
     }
 
     shade(hex, amount) {
@@ -640,7 +748,7 @@ class GameEngine {
         this.ctx.arc(0, 0, 14, 0, Math.PI * 2);
         this.ctx.fill();
 
-        if (relic.key === 'ripple') {
+        if (relic.key === 'spray') {
             this.ctx.fillStyle = relic.color;
             this.ctx.beginPath();
             this.ctx.moveTo(0, -7);
@@ -854,15 +962,20 @@ class GameEngine {
         if (this.valRelic) this.valRelic.textContent = '—';
     }
 
-    updateRelicRosterUI() {
+    syncHudRelics() {
+        if (!this.hudRelics) return;
         LEDGER_RELICS.forEach(r => {
-            const el = document.querySelector(`[data-relic="${r.key}"]`);
-            if (!el) return;
-            el.classList.toggle('collected', this.relicsCollected.includes(r.id));
-            el.classList.toggle('active-spawn', this.activeRelic?.id === r.id);
+            const gem = this.hudRelics.querySelector(`[data-hud-relic="${r.key}"]`);
+            if (!gem) return;
+            const owned = this.relicsCollected.includes(r.id);
+            const active = this.activeRelic?.id === r.id;
+            gem.classList.toggle('owned', owned);
+            gem.classList.toggle('active-spawn', active && !owned);
         });
-        const slots = document.getElementById('inventory-slots');
-        if (slots && window.web3Simulator) window.web3Simulator.updateInventoryUI();
+    }
+
+    updateRelicRosterUI() {
+        this.syncHudRelics();
     }
 
     // ——— Input / movement (same core, updated collisions) ———
@@ -1207,23 +1320,22 @@ class GameEngine {
 
     formatScoreDisplay(n) {
         if (typeof formatScoreText === 'function') return formatScoreText(n);
-        return String(Math.max(0, Math.floor(Number(n) || 0))).slice(0, 10);
+        return String(Math.max(0, Math.floor(Number(n) || 0))).slice(0, 12);
     }
 
     updateUI() {
-        const livesStr = this.lives > 0 ? '●'.repeat(this.lives) : '0';
         const scoreText = this.formatScoreDisplay(this.score);
         if (this.lblLevel) this.lblLevel.textContent = this.level;
         if (this.valScore) this.valScore.textContent = scoreText;
         if (this.valDots) this.valDots.textContent = this.dotsEaten;
-        if (this.valLives) this.valLives.textContent = livesStr;
+        this.updateLivesDisplay(this.lives);
         if (this.hudScore) this.hudScore.textContent = scoreText;
-        if (this.hudLives) this.hudLives.textContent = livesStr;
         if (this.hudTier) {
             const jackpot = window.web3Simulator?.economy?.bags?.jackpot ?? 0;
             const maxTier = Math.round(jackpot * 0.5 * 1000) / 1000;
             this.hudTier.textContent = `${maxTier.toFixed(3)} XRP`;
         }
+        this.syncHudRelics();
         if (this.valMode) this.valMode.textContent = this.frightenedTurns > 0 ? 'AUDIT' : this.globalMode.toUpperCase();
         if (this.frightenedTurns > 0) {
             if (this.effectRow) this.effectRow.style.display = 'flex';

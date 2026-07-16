@@ -3,9 +3,10 @@ pragma solidity ^0.8.20;
 
 /**
  * @title LeakRunnerXRPL (conceptual bridge notes)
- * @notice Leak Runner targets XRPL mainnet via Xaman — not EVM deployment.
- *         This file documents the economic intents that map to native XRPL
- *         transactions for Make Waves demos / future hooks.
+ * @notice Leak Runner is intended for XRPL (via Xaman) when live — not EVM deployment.
+ *         The browser client today is largely a simulator; this file documents economic
+ *         intents that map to native XRPL transactions for demos / future hooks.
+ *         Live mainnet deployments may charge real XRP (see docs/LEGAL.md).
  *
  * XRPL native mapping (implemented in client simulator today):
  *   - Stake / entry          → Payment (XRP) into game escrow account
@@ -16,7 +17,7 @@ pragma solidity ^0.8.20;
  *   - High-score board       → off-ledger index of ScoreCommit memos (or sidechain)
  *   - Node permadeath        → NFTokenBurn (XLS-20 Node NFT)
  *   - Skin unlock            → NFTokenAcceptOffer / Payment for offer
- *   - Wallet                 → Xaman sign requests (mainnet)
+ *   - Wallet                 → Xaman sign requests (when live)
  *
  * Suggested demo amounts:
  *   ENTRY_STAKE      = 0.5 XRP

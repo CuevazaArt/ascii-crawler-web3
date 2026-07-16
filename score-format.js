@@ -1,13 +1,13 @@
 /**
- * Score display helpers — ASCII-only, max 10 characters.
+ * Score display helpers — ASCII-only, max 12 characters.
  * Shared by lobby HUD, attract mode, and ledger UI.
  */
 (function (root) {
-    var SCORE_MAX_CHARS = 10;
-    var SCORE_MAX_VALUE = 9999999999; // fits in 10 ASCII digits
+    var SCORE_MAX_CHARS = 12;
+    var SCORE_MAX_VALUE = 999999999999; // fits in 12 ASCII digits
 
     /**
-     * Format a numeric score for UI: ASCII digits only, ≤ 10 chars.
+     * Format a numeric score for UI: ASCII digits only, ≤ 12 chars.
      * @param {*} value
      * @param {{ pad?: number }} [opts]
      */
@@ -28,7 +28,7 @@
     }
 
     /**
-     * Sanitize free-form score-related labels (names, tags) to ASCII ≤ 10.
+     * Sanitize free-form score-related labels (names, tags) to ASCII ≤ 12.
      * @param {*} text
      */
     function formatScoreLabel(text) {

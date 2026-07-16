@@ -7,6 +7,7 @@ test('index.html declares the expected control surface', () => {
     const ids = [
         'btn-connect',
         'btn-legal-docs',
+        'btn-github-repo',
         'btn-arcade-start',
         'btn-start-run',
         'btn-claim-exit',
@@ -22,9 +23,9 @@ test('index.html declares the expected control surface', () => {
     for (const id of ids) {
         assert.match(html, new RegExp(`id="${id}"`), `missing button/control #${id}`);
     }
-    assert.match(html, /arcade-s">\[S\]<\/span>TART/);
-    assert.doesNotMatch(html, /arcade-start-key/);
-    assert.doesNotMatch(html, /PRESS\s*<kbd>S<\/kbd><\/span>/);
+    assert.match(html, /arcade-start-label">START<\/span>/);
+    assert.match(html, /arcade-start-key/);
+    assert.match(html, /PRESS\s*<kbd>S<\/kbd>/);
 });
 
 test('Legal · ToS button links to docs/legal.html', () => {
@@ -32,7 +33,26 @@ test('Legal · ToS button links to docs/legal.html', () => {
     const btn = document.getElementById('btn-legal-docs');
     assert.ok(btn);
     assert.equal(btn.getAttribute('href'), 'docs/legal.html');
-    assert.match(btn.textContent, /Legal/i);
+    assert.match(btn.textContent.trim(), /Legal/i);
+});
+
+test('GitHub button links to the project repository', () => {
+    const { document } = loadApp();
+    const btn = document.getElementById('btn-github-repo');
+    assert.ok(btn);
+    assert.equal(btn.getAttribute('href'), 'https://github.com/CuevazaArt/ascii-crawler-web3');
+});
+
+test('Demo Mode switch lives in the header before Legal · ToS', () => {
+    const { document } = loadApp();
+    const tray = document.querySelector('.header-chip-tray');
+    const demo = document.getElementById('chk-bypass-web3');
+    const legal = document.getElementById('btn-legal-docs');
+    assert.ok(tray);
+    assert.ok(tray.contains(demo));
+    assert.ok(demo.closest('label')?.classList.contains('header-demo-toggle'));
+    const kids = [...tray.children];
+    assert.ok(kids.indexOf(demo.closest('label')) < kids.indexOf(legal));
 });
 
 test('Connect Xaman opens ToS; Decline cancels; Accept connects wallet', async () => {
@@ -153,12 +173,32 @@ test('Node skin palette buttons select unlocked skins', () => {
     assert.equal(sim.currentPalette, 'classic');
 });
 
-test('score HUD uses ≤10 ASCII digits', () => {
+test('score HUD uses ≤12 ASCII digits', () => {
     const { window, document } = loadApp();
     const engine = window.gameEngine;
-    engine.score = 1234567890123;
+    engine.score = 12345678901234;
     engine.updateUI();
     const text = document.getElementById('val-score').textContent;
-    assert.ok(text.length <= 10);
+    assert.ok(text.length <= 12);
     assert.match(text, /^[0-9]+$/);
+});
+
+test('attract credits reserve last row for CUEVAZAART', () => {
+    const { window } = loadApp();
+    const rows = window.web3Simulator.buildAttractRows();
+    assert.equal(rows.length, 5);
+    assert.equal(rows[4].name, 'CUEVAZAART');
+});
+
+test('HUD shows open-mouth Node lives beside relic vault gems', () => {
+    const { window, document } = loadApp();
+    const engine = window.gameEngine;
+    engine.lives = 3;
+    engine.updateLivesDisplay(3);
+    const lives = document.getElementById('hud-lives');
+    assert.equal(lives.querySelectorAll('.hud-node-life').length, 3);
+    assert.ok(lives.querySelector('svg path'));
+    const relics = document.getElementById('hud-relics');
+    assert.ok(relics);
+    assert.equal(relics.querySelectorAll('.hud-relic-gem').length, 5);
 });

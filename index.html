@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Leak Runner — XRPL Make Waves Prototype</title>
+    <title>Leak Runner — XRPL arcade demo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=23">
+    <link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
     <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -17,28 +17,45 @@
 
     <div class="app-container">
         <header class="app-header">
-            <div class="logo">
+            <div class="brand-block">
                 <div class="logo-mark" aria-hidden="true">
                     <i class="fa-solid fa-shield-halved"></i>
                 </div>
                 <div class="logo-text">
                     <span class="retro-title neon-text">LEAK RUNNER</span>
-                    <span class="logo-tagline">Securithon Protocol · Make Waves</span>
+                    <span class="logo-tagline">Securithon Protocol · built for XRPL demos</span>
                 </div>
-                <span class="badge web3-badge">XRPL MAIN</span>
+                <span class="web3-badge" title="Educational XRPL economy demo">
+                    <span class="web3-badge-dot" aria-hidden="true"></span>
+                    XRPL DEMO
+                </span>
             </div>
-            
-            <div class="wallet-bar">
-                <a class="btn btn-legal" id="btn-legal-docs" href="docs/legal.html" target="_blank" rel="noopener noreferrer">
-                    <i class="fa-solid fa-scale-balanced"></i> Legal · ToS
-                </a>
-                <div class="wallet-info" id="wallet-info">
-                    <span class="status-indicator disconnected"></span>
-                    <span class="wallet-address">Xaman Disconnected</span>
+
+            <div class="header-tools wallet-bar">
+                <div class="header-chip-tray" role="group" aria-label="Session tools">
+                    <label class="bypass-toggle header-demo-toggle" title="Play without XRPL / Xaman">
+                        <input type="checkbox" id="chk-bypass-web3">
+                        <span class="toggle-label">Demo</span>
+                    </label>
+                    <a class="header-chip btn-legal" id="btn-legal-docs" href="docs/legal.html" target="_blank" rel="noopener noreferrer">
+                        <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
+                        <span>Legal</span>
+                    </a>
+                    <a class="header-chip btn-github" id="btn-github-repo" href="https://github.com/CuevazaArt/ascii-crawler-web3" target="_blank" rel="noopener noreferrer" title="GitHub repository">
+                        <i class="fa-brands fa-github" aria-hidden="true"></i>
+                        <span>GitHub</span>
+                    </a>
                 </div>
-                <button class="btn btn-primary" id="btn-connect" type="button">
-                    <i class="fa-solid fa-qrcode"></i> Connect Xaman
-                </button>
+                <div class="wallet-cluster">
+                    <div class="wallet-info" id="wallet-info">
+                        <span class="status-indicator disconnected"></span>
+                        <span class="wallet-address">Xaman Disconnected</span>
+                    </div>
+                    <button class="btn btn-primary btn-connect-xaman" id="btn-connect" type="button">
+                        <i class="fa-solid fa-qrcode" aria-hidden="true"></i>
+                        <span>Connect Xaman</span>
+                    </button>
+                </div>
             </div>
         </header>
 
@@ -57,7 +74,7 @@
             </div>
             <div class="attract-logo">
                 <span class="attract-logo-text">LEAK RUNNER</span>
-                <span class="attract-logo-sub">SECURITHON · MAKE WAVES</span>
+                <span class="attract-logo-sub">SECURITHON · XRPL DEMO</span>
             </div>
             <h2 class="attract-heading">TOP 5 PLAYERS</h2>
             <div class="attract-table-wrap">
@@ -75,11 +92,15 @@
                 </table>
             </div>
             <p class="attract-credit">PRESS <kbd>S</kbd> · STAKE 0.5 XRP · BOOT NODE</p>
-            <p class="attract-copy">© MAKE WAVES · XRPL</p>
+            <p class="attract-copy">© 2026 LEAK RUNNER · BUILT FOR XRPL DEMOS</p>
+            <p class="attract-disclaimer">AS IS · MAINNET MAY CHARGE REAL XRP · NO REFUNDS GUARANTEED · SEE LEGAL · ToS</p>
+            <p class="attract-repo">
+                <a href="https://github.com/CuevazaArt/ascii-crawler-web3" target="_blank" rel="noopener noreferrer">github.com/CuevazaArt/ascii-crawler-web3</a>
+            </p>
         </div>
 
         <main class="main-content lobby-columns" id="lobby-main">
-            <!-- Left 40%: menus / info -->
+            <!-- Left 30%: menus / info -->
             <aside class="sidebar-panel lobby-col lobby-col-side">
                 <div class="card stats-card">
                     <div class="stats-header">
@@ -100,7 +121,7 @@
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Uptime:</span>
-                            <span class="stat-value text-danger" id="val-lives" style="font-family: var(--font-retro); font-size: 0.75rem;">-</span>
+                            <span class="stat-value hud-lives-row sidebar-lives" id="val-lives" aria-label="Lives">-</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Score:</span>
@@ -157,7 +178,7 @@
                     </div>
                     
                     <div class="scoreboard-section">
-                        <h3 class="palette-title"><i class="fa-solid fa-trophy text-warning"></i> XRPL SCOREBOARD</h3>
+                        <h3 class="palette-title"><i class="fa-solid fa-trophy text-warning"></i> SCOREBOARD</h3>
                         <ol class="score-leaderboard" id="score-leaderboard">
                             <li class="lb-empty">No ledger scores yet.</li>
                         </ol>
@@ -167,19 +188,6 @@
                         </ul>
                     </div>
 
-                    <div class="inventory-section-compact">
-                        <h3 class="palette-title"><i class="fa-solid fa-gem text-secondary"></i> RELIC VAULT</h3>
-                        <div class="inventory-slots" id="inventory-slots">
-                            <div class="slot empty" title="Ripple Shard"><i class="fa-solid fa-gem"></i></div>
-                            <div class="slot empty" title="Hook Glyph"><i class="fa-solid fa-bezier-curve"></i></div>
-                            <div class="slot empty" title="AMM Prism"><i class="fa-solid fa-cubes"></i></div>
-                            <div class="slot empty" title="Validator Crest"><i class="fa-solid fa-award"></i></div>
-                            <div class="slot empty" title="Consensus Orb"><i class="fa-solid fa-circle-nodes"></i></div>
-                        </div>
-                    </div>
-
-                    <div class="relic-roster" id="relic-roster"></div>
-
                     <div class="palette-selector-section">
                         <h3 class="palette-title"><i class="fa-solid fa-palette text-secondary"></i> NODE SKIN</h3>
                         <div class="palette-options">
@@ -187,10 +195,10 @@
                                 Ledger <span class="badge-free">Free</span>
                             </button>
                             <button class="btn-palette locked" id="btn-palette-green" data-palette="green">
-                                Mainnet <span class="badge-price">1 XRP</span>
+                                Verdant <span class="badge-price">1 XRP</span>
                             </button>
                             <button class="btn-palette locked" id="btn-palette-pico" data-palette="pico">
-                                Devnet <span class="badge-price">1 XRP</span>
+                                Circuit <span class="badge-price">1 XRP</span>
                             </button>
                         </div>
                     </div>
@@ -202,14 +210,14 @@
                 </div>
 
                 <div class="card logs-card">
-                    <h2 class="card-title"><i class="fa-solid fa-water text-secondary"></i> XRPL LEDGER LOGS</h2>
+                    <h2 class="card-title"><i class="fa-solid fa-water text-secondary"></i> LEDGER LOGS</h2>
                     <div class="logs-container" id="logs-container">
-                        <div class="log-entry system">Awaiting Xaman · XRPL mainnet micropayments demo for Make Waves.</div>
+                        <div class="log-entry system">Awaiting Xaman · educational XRPL micropayments demo.</div>
                     </div>
                 </div>
             </aside>
 
-            <!-- Right 60%: main game / lobby start -->
+            <!-- Right 70%: main game / lobby start -->
             <section class="game-panel lobby-col lobby-col-main">
                 <div class="terminal-container">
                     <div class="terminal-header">
@@ -229,9 +237,13 @@
                                     <span class="hud-label">SCORE</span>
                                     <span class="hud-value text-warning" id="hud-score">0</span>
                                 </div>
-                                <div class="hud-chip">
+                                <div class="hud-chip hud-lives-chip">
                                     <span class="hud-label">LIVES</span>
-                                    <span class="hud-value text-danger" id="hud-lives">●●●</span>
+                                    <div class="hud-lives-row" id="hud-lives" aria-label="Lives"></div>
+                                </div>
+                                <div class="hud-chip hud-relics-chip">
+                                    <span class="hud-label">RELICS</span>
+                                    <div class="hud-relics-row" id="hud-relics" aria-label="Relic vault"></div>
                                 </div>
                                 <div class="hud-chip hud-tier">
                                     <span class="hud-label">MAX TIER</span>
@@ -249,8 +261,9 @@
                             <p class="blink text-primary">Stake 0.5 XRP · Boot the Node</p>
                             <p class="subtext">Earn in-channel · settle on Claim · chase the prize bags.</p>
                             <div class="start-action-block">
-                                <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game — press S">
-                                    <span class="arcade-start-label"><span class="arcade-s">[S]</span>TART</span>
+                                <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game">
+                                    <span class="arcade-start-label">START</span>
+                                    <span class="arcade-start-key">PRESS <kbd>S</kbd></span>
                                 </button>
                                 <div class="controls-guide">
                                     <p class="controls-keys">
@@ -279,11 +292,6 @@
                         <button class="btn btn-danger" id="btn-session-keys" disabled style="width: 100%;">
                             <i class="fa-solid fa-link"></i> Payment Channel
                         </button>
-                        <label class="bypass-toggle">
-                            <input type="checkbox" id="chk-bypass-web3">
-                            <span class="slider"></span>
-                            <span class="toggle-label">Demo Mode (no XRPL)</span>
-                        </label>
                     </div>
                 </div>
             </section>
@@ -291,8 +299,10 @@
         
         <footer class="app-footer">
             <p>
-                Leak Runner · Securithon · Make Waves ·
+                © 2026 Leak Runner · Securithon · built for XRPL demos ·
                 <a href="docs/legal.html" target="_blank" rel="noopener noreferrer" id="footer-legal-link">Disclaimer · License · ToS</a>
+                ·
+                <a href="https://github.com/CuevazaArt/ascii-crawler-web3" target="_blank" rel="noopener noreferrer" id="footer-github-link">GitHub</a>
             </p>
         </footer>
     </div>
@@ -301,19 +311,22 @@
     <div class="modal-overlay" id="tos-modal" role="dialog" aria-modal="true" aria-labelledby="tos-title">
         <div class="modal-content tos-modal-content">
             <h2 id="tos-title" class="tos-title"><i class="fa-solid fa-scale-balanced text-secondary"></i> Accept Terms</h2>
-            <p class="tos-lead">Before linking Xaman you must accept the Disclaimer, License, and Terms of Service.</p>
+            <p class="tos-lead">Before linking Xaman you must accept the Disclaimer, License, and Terms of Service. On mainnet, real XRP may be charged.</p>
             <ul class="tos-points">
-                <li>Prototype / demo — AS IS; no financial advice</li>
-                <li>MIT rights of use — keep notices; fair use of marks</li>
-                <li>Good use &amp; fair play — no fraud or abuse of rewards</li>
-                <li>No hate, discrimination, racism, or harmful incitement</li>
+                <li>AS IS — no financial advice; you may lose XRP</li>
+                <li>Mainnet stakes / fees / burns can charge <strong>real XRP</strong> (irreversible; no refund guaranteed)</li>
+                <li>Review every Xaman payload before signing</li>
+                <li>Not an official Ripple, XRPL Foundation, or Xaman product</li>
+                <li>Good use &amp; fair play — no fraud, hate, discrimination, or harmful incitement</li>
             </ul>
             <p class="tos-doc-link">
                 <a href="docs/legal.html" target="_blank" rel="noopener noreferrer" id="tos-read-full">Read full Legal · ToS</a>
+                ·
+                <a href="https://github.com/CuevazaArt/ascii-crawler-web3" target="_blank" rel="noopener noreferrer" id="tos-github-link">GitHub repo</a>
             </p>
             <label class="tos-check">
                 <input type="checkbox" id="chk-tos-agree">
-                <span>I have read and agree to the Disclaimer, License, and Terms of Service</span>
+                <span>I have read and agree to the Disclaimer, License, and Terms — including possible mainnet XRP charges</span>
             </label>
             <div class="tos-actions">
                 <button type="button" class="btn btn-primary" id="btn-tos-accept" disabled>
@@ -327,28 +340,47 @@
     </div>
 
     <div class="modal-overlay" id="gameover-modal">
-        <div class="modal-content text-center">
-            <h1 class="neon-text text-danger font-retro blink">NODE SLASHED</h1>
+        <div class="modal-content gameover-arcade text-center" role="dialog" aria-labelledby="go-title">
+            <div class="go-stars" aria-hidden="true"></div>
+            <p class="go-kicker">GAME OVER</p>
+            <h1 id="go-title" class="go-title blink">NODE SLASHED</h1>
             <div class="permadeath-avatar">
-                <i class="fa-solid fa-skull-crossbones text-danger"></i>
+                <i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i>
                 <div class="burn-animation" id="burn-anim"></div>
             </div>
-            <h3 class="text-danger">UPTIME COLLAPSED — NFT BURN</h3>
-            <p>Your Node NFT <strong id="lbl-burned-hero">#0</strong> was <strong class="text-danger">BURNED</strong> via XRPL <code>NFTokenBurn</code>.</p>
-            <p class="subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the grid.</p>
-            <div class="score-summary">
-                <p class="text-secondary" id="lbl-record-flag" style="display:none">★ NEW LEDGER RECORD</p>
-                <p>Final Score: <span id="lbl-final-score" class="text-warning">0</span></p>
-                <p>Best (XRPL): <span id="lbl-best-score" class="text-secondary">0</span></p>
-                <p>Drops Harvested: <span id="lbl-final-level" class="text-success">0</span></p>
+            <p class="go-status">UPTIME COLLAPSED</p>
+            <p class="go-status-sub">NFT BURN · DEMO SETTLE</p>
+            <p class="go-flavor">
+                NODE <strong id="lbl-burned-hero">#0</strong>
+                <span class="go-burned">BURNED</span>
+            </p>
+            <p class="go-subtext subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the grid.</p>
+            <div class="score-summary go-scoreboard">
+                <p class="go-record" id="lbl-record-flag" style="display:none">★ NEW LEDGER RECORD</p>
+                <div class="go-stat-row">
+                    <span class="go-stat-lab">SCORE</span>
+                    <span class="go-stat-val text-warning" id="lbl-final-score">0</span>
+                </div>
+                <div class="go-stat-row">
+                    <span class="go-stat-lab">BEST</span>
+                    <span class="go-stat-val text-secondary" id="lbl-best-score">0</span>
+                </div>
+                <div class="go-stat-row">
+                    <span class="go-stat-lab">DROPS</span>
+                    <span class="go-stat-val text-success" id="lbl-final-level">0</span>
+                </div>
             </div>
-            <button class="btn btn-danger" id="btn-close-gameover">Close Session</button>
+            <button type="button" class="arcade-continue-btn" id="btn-close-gameover">
+                <span class="arcade-continue-label">CONTINUE</span>
+                <span class="arcade-continue-key">CLOSE SESSION</span>
+            </button>
+            <p class="go-foot">© 2026 LEAK RUNNER · BUILT FOR XRPL DEMOS</p>
         </div>
     </div>
 
-    <script src="score-format.js?v=23"></script>
-    <script src="audio.js?v=23"></script>
-    <script src="blockchain.js?v=23"></script>
-    <script src="game.js?v=23"></script>
+    <script src="score-format.js?v=39"></script>
+    <script src="audio.js?v=39"></script>
+    <script src="blockchain.js?v=39"></script>
+    <script src="game.js?v=39"></script>
 </body>
 </html>
