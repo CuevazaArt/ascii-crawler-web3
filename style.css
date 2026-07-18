@@ -99,8 +99,10 @@ body {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
-    width: fit-content;
-    max-width: 100%;
+    /* Fixed to the canvas natural width (29 cols × 20px). fit-content let the
+       HUD's changing text re-measure the grid and re-scale the canvas every
+       score tick — perceived as a zoom/jitter bug. */
+    width: min(580px, 100%);
     z-index: 2;
 }
 
@@ -109,7 +111,13 @@ body {
     grid-template-columns: 1fr 1.1fr 1.35fr 1.2fr;
     gap: 6px;
     width: 100%;
+    min-width: 0;
     padding: 0 1px;
+}
+
+.ingame-hud .hud-chip {
+    min-width: 0;
+    overflow: hidden;
 }
 
 .hud-chip {
@@ -257,14 +265,246 @@ body {
     }
 }
 
+.canvas-stack {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    line-height: 0;
+    touch-action: none; /* swipe steering on mobile */
+}
+
+/* Audit Cert pickup — quick teal strobe over the playfield */
+.canvas-stack.cert-flash::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    background: radial-gradient(circle at 50% 50%, rgba(0, 255, 183, 0.36), rgba(0, 255, 183, 0.08) 65%, transparent 80%);
+    animation: cert-flash 0.4s ease-out forwards;
+}
+
+@keyframes cert-flash {
+    0% { opacity: 0; }
+    22% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 #game-canvas {
     position: relative;
     z-index: 2;
+    display: block;
+    max-width: 100%;
+    height: auto;
     image-rendering: pixelated;
     border-radius: 6px;
     box-shadow:
         0 0 0 1px hsla(220, 80%, 50%, 0.35),
         0 8px 28px rgba(0, 0, 0, 0.55);
+}
+
+/* Arcade comic bursts — screamed names + colorful onomatopoeia */
+.fx-bursts {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+    overflow: hidden;
+    border-radius: 6px;
+    line-height: normal;
+}
+
+.fx-burst {
+    position: absolute;
+    /* 70% of prior comic burst scale */
+    --fx-scale: 0.7;
+    transform: translate(-50%, -50%) scale(var(--fx-scale));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.15;
+    will-change: transform, opacity;
+    animation: fx-burst-rise 0.85s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+    filter: drop-shadow(0 1px 0 #000);
+}
+
+.fx-burst.fx-burst-done {
+    animation: none !important;
+    opacity: 0 !important;
+    visibility: hidden;
+}
+
+.fx-burst-title {
+    font-family: var(--font-retro);
+    font-size: clamp(0.3rem, 1.1vw, 0.42rem);
+    letter-spacing: 0.06em;
+    color: var(--fx-accent, #ffe14d);
+    text-shadow:
+        0 0 6px color-mix(in srgb, var(--fx-color) 70%, transparent),
+        1px 1px 0 #000;
+    animation: fx-scream-shake 0.32s ease-out;
+}
+
+.fx-burst-ono {
+    font-family: var(--font-retro);
+    font-size: clamp(0.5rem, 1.8vw, 0.74rem);
+    letter-spacing: 0.08em;
+    line-height: 1;
+    color: var(--fx-color, #ff2a2a);
+    -webkit-text-stroke: 0.8px rgba(0, 0, 0, 0.85);
+    paint-order: stroke fill;
+    text-shadow:
+        0 0 8px color-mix(in srgb, var(--fx-color) 80%, transparent),
+        0 0 16px color-mix(in srgb, var(--fx-color) 45%, transparent),
+        1px 1px 0 #1a0000;
+    animation: fx-ono-pop 0.4s cubic-bezier(0.15, 1.4, 0.4, 1);
+    transform-origin: center bottom;
+}
+
+.fx-burst-score {
+    font-family: var(--font-retro);
+    font-size: clamp(0.28rem, 1vw, 0.38rem);
+    letter-spacing: 0.08em;
+    color: #fff;
+    text-shadow: 0 0 5px var(--fx-accent), 1px 1px 0 #000;
+    opacity: 0.95;
+}
+
+.fx-burst-slash .fx-burst-ono {
+    animation: fx-ono-pop 0.5s cubic-bezier(0.15, 1.4, 0.4, 1);
+}
+
+.fx-burst-relic .fx-burst-ono {
+    animation: fx-ono-pop 0.5s cubic-bezier(0.15, 1.4, 0.4, 1);
+}
+
+.fx-burst-relic .fx-burst-title {
+    color: var(--fx-color);
+    text-shadow:
+        0 0 10px color-mix(in srgb, var(--fx-accent) 80%, transparent),
+        1px 1px 0 #000;
+}
+
+/* Node death comic burst */
+.fx-burst-death {
+    --fx-scale: 0.95;
+    animation: fx-burst-death 1.45s cubic-bezier(0.2, 0.85, 0.3, 1) forwards;
+    z-index: 6;
+}
+
+.fx-burst-death .fx-burst-ono {
+    font-size: clamp(0.62rem, 2.2vw, 0.9rem);
+    color: #ff1744;
+    animation: fx-ono-pop 0.55s cubic-bezier(0.15, 1.4, 0.4, 1);
+}
+
+.fx-burst-death .fx-burst-title {
+    color: #ffe14d;
+    animation: fx-scream-shake 0.5s ease-out;
+}
+
+@keyframes fx-burst-death {
+    0% { opacity: 0; transform: translate(-50%, -20%) scale(calc(var(--fx-scale) * 0.4)); }
+    12% { opacity: 1; transform: translate(-50%, -45%) scale(calc(var(--fx-scale) * 1.15)); }
+    55% { opacity: 1; transform: translate(-50%, -70%) scale(var(--fx-scale)); }
+    100% { opacity: 0; transform: translate(-50%, -110%) scale(calc(var(--fx-scale) * 0.85)); }
+}
+
+/* Screen shake + flash when Node dies */
+.canvas-stack.node-death-shake {
+    animation: node-death-shake 0.65s ease-out;
+}
+
+.canvas-stack.node-death-final {
+    animation:
+        node-death-shake 0.7s ease-out,
+        node-death-flash 1.7s ease-out;
+}
+
+@keyframes node-death-shake {
+    0%, 100% { transform: translate(0, 0); }
+    8% { transform: translate(-5px, 3px) rotate(-0.4deg); }
+    16% { transform: translate(6px, -3px) rotate(0.5deg); }
+    24% { transform: translate(-4px, -2px) rotate(-0.3deg); }
+    32% { transform: translate(5px, 2px) rotate(0.35deg); }
+    42% { transform: translate(-3px, 1px); }
+    55% { transform: translate(2px, -1px); }
+    70% { transform: translate(-1px, 0); }
+}
+
+@keyframes node-death-flash {
+    0% { filter: brightness(1) saturate(1); }
+    6% { filter: brightness(2.4) saturate(0.4); }
+    18% { filter: brightness(0.65) sepia(0.55) hue-rotate(-25deg); }
+    45% { filter: brightness(0.85) saturate(1.2); }
+    100% { filter: brightness(1) saturate(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .canvas-stack.node-death-shake,
+    .canvas-stack.node-death-final {
+        animation: none !important;
+        filter: none !important;
+    }
+    .canvas-stack.cert-flash::after {
+        animation: none !important;
+        opacity: 0 !important;
+    }
+    .fx-burst-death {
+        animation: fx-burst-fade 1.2s linear forwards !important;
+    }
+}
+
+@keyframes fx-burst-rise {
+    0% { opacity: 0; transform: translate(-50%, -30%) scale(calc(var(--fx-scale) * 0.55)); }
+    14% { opacity: 1; transform: translate(-50%, -50%) scale(calc(var(--fx-scale) * 1.08)); }
+    55% { opacity: 1; transform: translate(-50%, -72%) scale(var(--fx-scale)); }
+    100% { opacity: 0; transform: translate(-50%, -105%) scale(calc(var(--fx-scale) * 0.9)); }
+}
+
+@keyframes fx-scream-shake {
+    0% { transform: translateX(0) scale(0.8); }
+    20% { transform: translateX(-3px) scale(1.15) rotate(-3deg); }
+    40% { transform: translateX(3px) scale(1.05) rotate(2deg); }
+    60% { transform: translateX(-2px) rotate(-1deg); }
+    100% { transform: translateX(0) scale(1) rotate(0); }
+}
+
+@keyframes fx-ono-pop {
+    0% { transform: scale(0.35) rotate(-8deg); filter: brightness(1.6); }
+    55% { transform: scale(1.2) rotate(3deg); filter: brightness(1.15); }
+    100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+}
+
+@keyframes fx-ono-tilt {
+    0%, 100% { letter-spacing: 0.1em; }
+    40% { letter-spacing: 0.22em; }
+}
+
+@keyframes fx-ono-spark {
+    0%, 100% { filter: brightness(1); }
+    30% { filter: brightness(1.45) saturate(1.3); }
+    60% { filter: brightness(1.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fx-burst-title,
+    .fx-burst-ono {
+        animation: none !important;
+    }
+    .fx-burst {
+        /* Still fade out so the message never sticks */
+        animation: fx-burst-fade 0.85s linear forwards !important;
+        transform: translate(-50%, -70%) scale(var(--fx-scale));
+    }
+}
+
+@keyframes fx-burst-fade {
+    0%, 55% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 /* MAIN APPLICATION LAYOUT */
@@ -675,7 +915,12 @@ body {
     justify-content: space-between;
     align-items: center;
     border-bottom: 1px solid hsla(220, 100%, 50%, 0.25);
+    /* Rigid height: the dynamic sector title used to wrap and let flex squeeze
+       this bar 1-3px per tick, re-scaling the canvas (perceived zoom jitter) */
+    flex: 0 0 32px;
     height: 32px;
+    min-height: 32px;
+    overflow: hidden;
 }
 
 .terminal-dots {
@@ -697,6 +942,10 @@ body {
     font-family: var(--font-retro);
     font-size: 0.7rem;
     color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .fps-counter {
@@ -715,74 +964,9 @@ body {
     align-items: center;
     position: relative;
     overflow: auto;
-}
-
-/* PAC-MAN GRID LAYOUT */
-.ascii-grid {
-    font-family: var(--font-mono);
-    font-size: 1.25rem; /* Compressed for short height viewports */
-    line-height: 1.1;
-    letter-spacing: 2px;
-    white-space: pre;
-    color: hsl(210, 20%, 45%);
-    user-select: none;
-}
-
-/* CLASSES TO COLOR GAME TILES */
-.tile-wall { 
-    color: hsl(220, 100%, 50%); 
-    text-shadow: 0 0 6px hsla(220, 100%, 50%, 0.8);
-    font-weight: bold;
-}
-.tile-floor { color: hsla(210, 10%, 15%, 0.3); }
-
-/* Node / Exploit tile leftovers (canvas-primary now) */
-.tile-player { 
-    color: hsl(60, 100%, 50%); 
-    font-weight: bold; 
-    text-shadow: 0 0 10px hsl(60, 100%, 50%);
-    display: inline-block;
-    animation: pulse 0.15s infinite alternate;
-}
-
-/* Ghost styles */
-.tile-blinky { 
-    color: hsl(0, 100%, 50%); 
-    font-weight: bold; 
-    text-shadow: 0 0 8px hsl(0, 100%, 50%);
-}
-.tile-pinky { 
-    color: hsl(325, 100%, 75%); 
-    font-weight: bold; 
-    text-shadow: 0 0 8px hsl(325, 100%, 75%);
-}
-.tile-inky { 
-    color: hsl(180, 100%, 50%); 
-    font-weight: bold; 
-    text-shadow: 0 0 8px hsl(180, 100%, 50%);
-}
-.tile-clyde { 
-    color: hsl(35, 100%, 55%); 
-    font-weight: bold; 
-    text-shadow: 0 0 8px hsl(35, 100%, 55%);
-}
-.tile-frightened {
-    color: hsl(220, 100%, 70%) !important;
-    text-shadow: 0 0 8px hsl(220, 100%, 70%) !important;
-    animation: blue-white-flash 0.5s infinite alternate;
-}
-
-/* Consumables */
-.tile-dot {
-    color: hsl(30, 100%, 80%);
-    font-weight: bold;
-    text-shadow: 0 0 3px hsla(30, 100%, 80%, 0.3);
-}
-.tile-pellet {
-    color: hsl(60, 100%, 80%);
-    font-weight: bold;
-    text-shadow: 0 0 10px hsl(60, 100%, 80%);
-    animation: pellet-pulse 0.4s infinite alternate;
+    /* Reserve scrollbar space: a scrollbar popping in/out used to shrink the
+       flex area and re-scale the canvas mid-run (perceived zoom jitter). */
+    scrollbar-gutter: stable;
 }
 
 /* LOADING SCREENS / PROMPTS */
@@ -903,7 +1087,7 @@ body {
     box-shadow: 0 0 8px hsla(45, 100%, 50%, 0.55);
 }
 
-/* Retro SCORE TABLE banner (Juno First–inspired attract mode) */
+/* Retro SCORE TABLE banner (arcade attract mode) */
 .banner-slide.scoretable {
     padding: 8px 12px 20px;
     background:
@@ -986,19 +1170,94 @@ body {
     height: 12px;
     border-radius: 2px;
     display: inline-block;
-    box-shadow: 0 0 6px currentColor;
+    position: relative;
+    box-sizing: border-box;
 }
 
+/* Base drop — unchanged */
 .st-drop { background: #ffe14d; border-radius: 50%; width: 7px; height: 7px; margin: 0 auto; }
-.st-cert { background: #00ffb7; box-shadow: 0 0 8px #00ffb7; }
-.st-slash { background: #ff0000; border-radius: 50%; }
-.st-sector { background: linear-gradient(135deg, #4da3ff, #1555c0); }
-.st-relic1 { background: #5dade2; transform: rotate(45deg); }
-.st-relic2 { background: #af7ac5; border-radius: 50% 50% 50% 0; }
-.st-relic3 { background: #58d68d; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+
+/* Audit Cert — 16-bit tablet */
+.st-cert {
+    background:
+        linear-gradient(#0a120e, #0a120e) 0 0 / 100% 2px no-repeat,
+        linear-gradient(#3dffcf, #3dffcf) 0 2px / 100% 2px no-repeat,
+        linear-gradient(#00ffb7 0 60%, #007a5c 60% 100%);
+    box-shadow: 1px 1px 0 #003d2e;
+    border: 1px solid #0a120e;
+    border-radius: 1px;
+    image-rendering: pixelated;
+}
+.st-cert::after {
+    content: '';
+    position: absolute;
+    left: 3px; right: 3px; bottom: 2px;
+    height: 3px;
+    border-radius: 1px;
+    background: #0a120e;
+    box-shadow: inset 0 0 0 1px #00ffb7;
+}
+
+/* Slash foe token — flat pixel disc */
+.st-slash {
+    background:
+        linear-gradient(#ff6b6b, #ff6b6b) 2px 1px / 8px 2px no-repeat,
+        linear-gradient(#ff0000 0 55%, #8b0000 55% 100%);
+    border-radius: 1px;
+    box-shadow: 1px 1px 0 #5a0000;
+    border: 1px solid #3a0000;
+}
+
+/* Sector clear gem */
+.st-sector {
+    background: linear-gradient(#9ec9ff 0 35%, #4da3ff 35% 70%, #1555c0 70% 100%);
+    clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+    box-shadow: 1px 1px 0 #0a3060;
+    border-radius: 0;
+}
+
+/* Spray Shard */
+.st-relic1 {
+    background: linear-gradient(135deg, #85c1e9 0 40%, #5dade2 40% 75%, #2874a6 75% 100%);
+    transform: rotate(45deg);
+    box-shadow: 1px 1px 0 #1a5276;
+    border: 1px solid #0a2a40;
+    border-radius: 0;
+}
+
+/* Hook Glyph */
+.st-relic2 {
+    background: transparent;
+    box-shadow: none;
+    border: 2px solid #af7ac5;
+    border-radius: 1px;
+    border-top-color: transparent;
+    border-right-color: transparent;
+    transform: rotate(-35deg);
+    filter: none;
+}
+.st-relic2::after {
+    content: '';
+    position: absolute;
+    top: -2px; right: -1px;
+    width: 3px; height: 3px;
+    background: #d2b4de;
+    transform: none;
+    border: none;
+}
+
+/* AMM Prism */
+.st-relic3 {
+    background: linear-gradient(#abebc6 0 35%, #58d68d 35% 70%, #1e8449 70% 100%);
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    box-shadow: 1px 1px 0 #0e4a28;
+    border-radius: 0;
+}
+
+/* Mystery / Consensus */
 .st-mystery {
-    background: linear-gradient(180deg, #ffff55, #ff8c00);
-    border-radius: 50%;
+    background: linear-gradient(#fff59d 0 35%, #ffff55 35% 70%, #ff8c00 70% 100%);
+    border-radius: 1px;
     font-style: normal;
     font-size: 8px;
     font-weight: 900;
@@ -1006,6 +1265,8 @@ body {
     text-align: center;
     line-height: 12px;
     font-family: var(--font-mono);
+    box-shadow: 1px 1px 0 #8a4400;
+    border: 1px solid #111;
 }
 .st-mystery::before { content: '?'; }
 
@@ -1426,11 +1687,12 @@ kbd {
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    scrollbar-gutter: stable;
     padding-right: 4px;
     scrollbar-gutter: stable;
 }
 
-/* ——— Attract mode: Gaplus-style TOP 5 (idle lobby takeover) ——— */
+/* ——— Attract mode: arcade TOP 5 (idle lobby takeover) ——— */
 .attract-scores {
     position: absolute;
     inset: 0;
@@ -1981,7 +2243,7 @@ kbd {
     max-width: 450px;
 }
 
-/* Arcade GAME OVER (Gaplus / attract aesthetic) */
+/* Arcade GAME OVER (attract-mode aesthetic) */
 .modal-content.gameover-arcade {
     position: relative;
     overflow: hidden;
@@ -2038,11 +2300,84 @@ kbd {
 .gameover-arcade .permadeath-avatar {
     position: relative;
     z-index: 1;
-    font-size: 2.6rem;
-    margin: 8px 0 10px;
-    color: #ff2a2a;
-    filter: drop-shadow(0 0 12px hsla(355, 100%, 50%, 0.65));
-    animation: go-skull-pulse 1.4s ease-in-out infinite;
+    display: inline-grid;
+    place-items: center;
+    width: 128px;
+    height: 160px;
+    margin: 4px auto 10px;
+}
+
+.gameover-arcade .go-skull-svg {
+    position: relative;
+    z-index: 2;
+    width: 128px;
+    height: 160px;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    shape-rendering: crispEdges;
+    filter: none !important;
+    box-shadow: none !important;
+    opacity: 1;
+}
+
+/*
+ * Synced slow cycle (2.4s): closed+tongue-in → open+tongue-out.
+ * Same duration/keyframes avoid desync (old bug: jaw 0.28s vs tongue 1s).
+ */
+.gameover-arcade .go-skull-jaw-closed,
+.gameover-arcade .go-skull-jaw-open,
+.gameover-arcade .go-skull-tongue-in,
+.gameover-arcade .go-skull-tongue-out {
+    animation-duration: 2.4s;
+    animation-timing-function: steps(1, end);
+    animation-iteration-count: infinite;
+}
+
+.gameover-arcade .go-skull-jaw-closed {
+    animation-name: go-sync-a-on;
+}
+
+.gameover-arcade .go-skull-tongue-in {
+    animation-name: go-sync-a-on;
+}
+
+.gameover-arcade .go-skull-jaw-open {
+    animation-name: go-sync-b-on;
+}
+
+.gameover-arcade .go-skull-tongue-out {
+    animation-name: go-sync-b-on;
+}
+
+@keyframes go-sync-a-on {
+    0%, 54% { opacity: 1; visibility: visible; }
+    55%, 100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes go-sync-b-on {
+    0%, 54% { opacity: 0; visibility: hidden; }
+    55%, 100% { opacity: 1; visibility: visible; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gameover-arcade .go-skull-jaw-closed,
+    .gameover-arcade .go-skull-tongue-in {
+        animation: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    .gameover-arcade .go-skull-jaw-open,
+    .gameover-arcade .go-skull-tongue-out {
+        animation: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+}
+
+/* Keep starfield away from the skull mark so it reads as a flat sprite */
+.gameover-arcade .go-stars {
+    opacity: 0.35;
 }
 
 .go-status {
@@ -2054,6 +2389,7 @@ kbd {
     color: #39ff14;
     margin: 0 0 4px;
     text-shadow: 0 0 8px hsla(100, 100%, 45%, 0.45);
+    animation: go-status-pulse 1.6s ease-in-out infinite;
 }
 
 .go-status-sub {
@@ -2210,14 +2546,20 @@ kbd {
     margin: 0;
 }
 
-@keyframes go-skull-pulse {
-    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px hsla(355, 100%, 50%, 0.45)); }
-    50% { transform: scale(1.06); filter: drop-shadow(0 0 18px hsla(355, 100%, 55%, 0.8)); }
+@keyframes go-status-pulse {
+    0%, 100% { opacity: 0.82; text-shadow: 0 0 6px hsla(100, 100%, 45%, 0.35); }
+    50% { opacity: 1; text-shadow: 0 0 12px hsla(100, 100%, 50%, 0.7); }
 }
 
 @keyframes go-btn-pulse {
     0%, 100% { box-shadow: 0 0 0 2px #1a0000, 0 4px 0 #5a0000, 0 0 16px hsla(355, 100%, 45%, 0.35); }
     50% { box-shadow: 0 0 0 2px #1a0000, 0 4px 0 #5a0000, 0 0 32px hsla(355, 100%, 55%, 0.7); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .go-status {
+        animation: none !important;
+    }
 }
 
 .text-center { text-align: center; }
@@ -2233,18 +2575,19 @@ kbd {
     font-size: 3rem;
     margin: 10px 0;
     position: relative;
-    display: inline-block;
+    display: inline-grid;
+    place-items: center;
 }
 
 .burn-animation {
     position: absolute;
-    top: 0;
-    left: 0;
+    inset: 0;
     width: 100%;
     height: 100%;
     background: radial-gradient(circle, rgba(255,69,0,0.6) 0%, rgba(255,0,0,0) 70%);
     mix-blend-mode: color-dodge;
     animation: flame 1.5s infinite alternate;
+    pointer-events: none;
 }
 
 .score-summary {
@@ -2336,21 +2679,6 @@ kbd {
 @keyframes flame {
     0% { transform: scale(0.9); opacity: 0.5; }
     100% { transform: scale(1.3); opacity: 0.9; }
-}
-
-@keyframes pulse {
-    0% { transform: scale(0.95); opacity: 0.9; }
-    100% { transform: scale(1.1); opacity: 1; }
-}
-
-@keyframes pellet-pulse {
-    0% { transform: scale(0.8); opacity: 0.4; }
-    100% { transform: scale(1.2); opacity: 1; }
-}
-
-@keyframes blue-white-flash {
-    0% { color: hsl(220, 100%, 65%); text-shadow: 0 0 6px hsl(220, 100%, 65%); }
-    100% { color: hsl(0, 0%, 100%); text-shadow: 0 0 10px hsl(0, 0%, 100%); }
 }
 
 /* Compact 2-col for mid widths (Cursor panels / laptops) */
@@ -2526,6 +2854,14 @@ kbd {
 }
 
 /* LORE + RELIC ROSTER */
+.lore-lead {
+    margin: 0 0 8px;
+    font-size: 0.7rem;
+    line-height: 1.35;
+    opacity: 0.75;
+    color: var(--color-text, #c8d0dc);
+}
+
 .lore-card {
     flex-shrink: 0;
 }

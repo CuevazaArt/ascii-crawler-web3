@@ -1,6 +1,6 @@
 # Leak Runner — XRPL arcade demo
 
-Arcade grid game (Securithon lore) with an Xaman / XRPL economy. Built for educational XRPL consumer-app experiments — not an official Ripple, XRPL Foundation, or Xaman product. Demo Mode is simulated; **live mainnet deployments may charge real XRP**.
+Boot a **Node** on the **Securithon Grid**: harvest Drops, seize Relics, slash Exploits — with an Xaman / XRPL economy. Built for educational XRPL consumer-app experiments — not an official Ripple, XRPL Foundation, or Xaman product. Demo Mode is simulated; **live mainnet deployments may charge real XRP**.
 
 **Repository:** [github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)
 
@@ -11,6 +11,31 @@ python -m http.server 8765
 ```
 
 Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/).
+
+## What is real vs. simulated
+
+Honest status of the XRPL layer (important for judges and contributors):
+
+| Layer | Status |
+| --- | --- |
+| Game engine, pixel art, audio, attract mode | **Real** — runs fully client-side |
+| Xaman connect, stake, Payment Channels, NFTokenBurn, ScoreCommit | **Simulated** — local mock, no network calls |
+| Balances, prize bags, epochs, leaderboards | **Simulated** — persisted in `localStorage` only |
+
+No real XRP moves in this repository today. The XRPL concepts are modeled 1:1 with their real counterparts (Payment Channels for micropayouts, NFTs via XLS-20, memos for score commits) so the swap to live rails is mechanical, not conceptual.
+
+### Roadmap to live XRPL
+
+1. Wallet: real Xaman (Xumm) SDK sign-in flow replacing the mock connect.
+2. Testnet: `xrpl.js` client — real stake payment, channel open/claim/close, `NFTokenMint`/`NFTokenBurn`.
+3. Score commits: transaction memos on-ledger, leaderboard read from ledger history.
+4. Mainnet hardening: amounts review, fee handling, error/retry UX.
+
+## Controls
+
+- **Keyboard:** arrows / WASD · `S` starts a run
+- **Gamepad:** d-pad or left stick
+- **Touch:** swipe on the playfield to steer · tap to start
 
 ## Legal
 

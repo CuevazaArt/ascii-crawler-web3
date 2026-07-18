@@ -39,7 +39,7 @@ class Web3Simulator {
     constructor() {
         this.isConnected = false;
         this.walletAddress = null;
-        this.ethBalance = 0; // kept id name for DOM hook; stores XRP
+        this.xrpBalance = 0;
         this.activeHeroId = null;
         this.activeHeroSkin = "Ledger Gold";
         this.hasSessionKeys = false; // Payment Channel open
@@ -77,7 +77,7 @@ class Web3Simulator {
         this.btnSessionKeys = document.getElementById('btn-session-keys');
         this.logsContainer = document.getElementById('logs-container');
         
-        this.valEthBalance = document.getElementById('val-rouge-balance');
+        this.valXrpBalance = document.getElementById('val-xrp-balance');
         this.valHeroNft = document.getElementById('val-hero-nft');
         this.valHeroClass = document.getElementById('val-hero-class');
         this.valBestScore = document.getElementById('val-best-score');
@@ -307,7 +307,7 @@ class Web3Simulator {
         }
 
         if (due > 0) {
-            this.creditEth(due);
+            this.creditXrp(due);
             this.sessionXrpEarned = this.roundXrp(this.sessionXrpEarned + due);
             this.economy.totalPaidPlayers = this.roundXrp(this.economy.totalPaidPlayers + due);
             const { hash, block } = this.getNewTxHash();
@@ -343,7 +343,7 @@ class Web3Simulator {
             const amt = this.roundXrp(jackpot * t.pct);
             paidJ += amt;
             this.log(`Epoch prize #${i + 1} → ${board[i].account} · ${amt.toFixed(4)} XRP (jackpot)`, 'event');
-            if (board[i].account === this.getScoreAccountKey()) this.creditEth(amt);
+            if (board[i].account === this.getScoreAccountKey()) this.creditXrp(amt);
         });
         // 15% of jackpot stays as seed
         this.economy.bags.jackpot = this.roundXrp(jackpot - paidJ);
@@ -353,7 +353,7 @@ class Web3Simulator {
             const each = this.roundXrp(topN / topCount);
             for (let i = 0; i < topCount; i++) {
                 this.log(`Top-N share → ${board[i].account} · ${each.toFixed(4)} XRP`, 'event');
-                if (board[i].account === this.getScoreAccountKey()) this.creditEth(each);
+                if (board[i].account === this.getScoreAccountKey()) this.creditXrp(each);
             }
             this.economy.bags.topN = 0;
         }
@@ -413,12 +413,12 @@ class Web3Simulator {
     checkMilestones({ score, drops, relics, level }) {
         const account = this.getScoreAccountKey();
         const checks = [
-            { id: 'drops_50', ok: drops >= 50, label: '50 drops harvested', rewardPct: 0.08 },
-            { id: 'drops_150', ok: drops >= 150, label: '150 drops harvested', rewardPct: 0.12 },
-            { id: 'relics_3', ok: relics >= 3, label: '3 Ledger Relics', rewardPct: 0.15 },
-            { id: 'score_1k', ok: score >= 1000, label: '1,000 pts', rewardPct: 0.10 },
-            { id: 'score_3k', ok: score >= 3000, label: '3,000 pts', rewardPct: 0.18 },
-            { id: 'sector_3', ok: level >= 3, label: 'Sector 3 clear', rewardPct: 0.20 }
+            { id: 'drops_50', ok: drops >= 50, label: '50 Drops harvested', rewardPct: 0.08 },
+            { id: 'drops_150', ok: drops >= 150, label: '150 Drops harvested', rewardPct: 0.12 },
+            { id: 'relics_3', ok: relics >= 3, label: '3 Relics vaulted', rewardPct: 0.15 },
+            { id: 'score_1k', ok: score >= 1000, label: '1,000 pts scored', rewardPct: 0.10 },
+            { id: 'score_3k', ok: score >= 3000, label: '3,000 pts scored', rewardPct: 0.18 },
+            { id: 'sector_3', ok: level >= 3, label: 'Hook Alley sealed', rewardPct: 0.20 }
         ];
         checks.forEach(m => {
             if (!m.ok || this.economy.milestonesClaimed[m.id]) return;
@@ -427,7 +427,7 @@ class Web3Simulator {
             const prize = this.roundXrp(bag * m.rewardPct);
             this.economy.milestonesClaimed[m.id] = { account, prize, ts: Date.now() };
             this.economy.bags.milestones = this.roundXrp(bag - prize);
-            this.creditEth(prize);
+            this.creditXrp(prize);
             this.sessionXrpEarned = this.roundXrp(this.sessionXrpEarned + prize);
             this.log(`Milestone [${m.label}] · first claim ${account} · +${prize.toFixed(4)} XRP`, 'event');
             this.economy.history.unshift({
@@ -490,13 +490,13 @@ class Web3Simulator {
         }
         el.innerHTML = items.map(h => {
             if (h.type === 'milestone') {
-                return `<li class="hist-row"><span class="hist-tag">HIT</span> ${h.label} · ${h.account} · +${(h.prize || 0).toFixed(3)}</li>`;
+                return `<li class="hist-row"><span class="hist-tag">HIT</span> ${this.escapeHtml(h.label)} · ${this.escapeHtml(h.account)} · +${(h.prize || 0).toFixed(3)}</li>`;
             }
             if (h.type === 'epoch') {
-                return `<li class="hist-row"><span class="hist-tag">EPOCH</span> #${h.epochId} winner ${h.winner || '—'} · ${h.topScore} pts</li>`;
+                return `<li class="hist-row"><span class="hist-tag">EPOCH</span> #${h.epochId} winner ${this.escapeHtml(h.winner || '—')} · ${h.topScore} pts</li>`;
             }
             const d = new Date(h.ts).toLocaleDateString();
-            return `<li class="hist-row"><span class="hist-tag">RUN</span> ${d} · ${h.account} · ${this.formatScoreDisplay(h.score)} pts</li>`;
+            return `<li class="hist-row"><span class="hist-tag">RUN</span> ${d} · ${this.escapeHtml(h.account)} · ${this.formatScoreDisplay(h.score)} pts</li>`;
         }).join('');
     }
 
@@ -515,34 +515,33 @@ class Web3Simulator {
         return [
             {
                 kind: 'prize',
-                kicker: 'PRIZE POOL',
+                kicker: 'PRIZE BAGS',
                 title: `${total.toFixed(2)} XRP`,
-                body: `Jackpot ${maxTier} → Epoch #1 · ends ${new Date(this.economy.epochEnds).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · demo bags unless live`
+                body: `Jackpot ${maxTier} → Epoch #${this.economy.epochId} · seals ${new Date(this.economy.epochEnds).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · demo bags unless live`
             },
             {
-                // Retro attract-mode SCORE TABLE (Juno First–style), Leak Runner lore
                 kind: 'scoretable',
-                kicker: 'LEAK RUNNER',
+                kicker: 'SECURITHON',
                 title: 'SCORE TABLE',
                 maxTier
             },
             {
                 kind: 'ad',
-                kicker: 'GRID SWARM',
-                title: 'Penguin Foes',
-                body: 'Bitwaddle · Hatglide · Slipkernel · Sourceflip — original chubby foes'
+                kicker: 'EXPLOIT SWARM',
+                title: 'The Four Leaks',
+                body: 'Bitwaddle · Hatglide · Slipkernel · Sourceflip — Exploits that hunt Node uptime'
             },
             {
                 kind: 'score',
                 kicker: 'ALL-TIME BEST',
                 title: top ? `${this.formatScoreDisplay(top.score)} pts` : '—',
-                body: top ? `${top.account} leads the scoreboard` : 'Be the first ScoreCommit on the ledger'
+                body: top ? `${top.account} holds the vault record` : 'Mint the first ScoreCommit on this ledger'
             },
             {
                 kind: 'score',
                 kicker: `EPOCH #${this.economy.epochId}`,
                 title: epochTop ? `${this.formatScoreDisplay(epochTop.score)} pts` : 'Open field',
-                body: epochTop ? `${epochTop.account} holds the epoch crown` : 'Play a run to claim epoch #1'
+                body: epochTop ? `${epochTop.account} wears the epoch crown` : 'Boot a Node to claim this epoch'
             },
             {
                 kind: 'score',
@@ -552,15 +551,15 @@ class Web3Simulator {
             },
             {
                 kind: 'ad',
-                kicker: 'PURPOSE',
-                title: 'XRPL demo',
-                body: 'Built for XRPL experiments · Demo Mode is simulated · live mainnet may charge real XRP · not an official product'
+                kicker: 'THE GRID',
+                title: 'Leak Runner',
+                body: 'Boot a Node on the Securithon Grid · harvest Drops · seize Relics · slash Exploits before they slash you'
             },
             {
                 kind: 'ad',
-                kicker: 'BUILT ON',
+                kicker: 'SETTLE ON',
                 title: 'XRP Ledger',
-                body: 'Payment Channels · micropayouts · Xaman wallet — settle skill, not spam'
+                body: 'Payment Channels · micropayouts · Xaman — skill settles on-chain, spam does not · Demo Mode is simulated'
             }
         ];
     }
@@ -572,20 +571,20 @@ class Web3Simulator {
                 <h3 class="scoretable-heading">SCORE TABLE</h3>
                 <div class="scoretable-grid">
                     <ul class="scoretable-col">
-                        <li><i class="st-icon st-drop"></i><span class="st-dots"></span><span class="st-pts">10 PTS</span></li>
-                        <li><i class="st-icon st-cert"></i><span class="st-dots"></span><span class="st-pts">50 PTS</span></li>
-                        <li><i class="st-icon st-slash"></i><span class="st-dots"></span><span class="st-pts">200 PTS</span></li>
-                        <li><i class="st-icon st-sector"></i><span class="st-dots"></span><span class="st-pts">500 PTS</span></li>
+                        <li><i class="st-icon st-drop" title="Drop"></i><span class="st-dots"></span><span class="st-pts">DROP 10</span></li>
+                        <li><i class="st-icon st-cert" title="Audit Cert"></i><span class="st-dots"></span><span class="st-pts">CERT 50</span></li>
+                        <li><i class="st-icon st-slash" title="Exploit slash"></i><span class="st-dots"></span><span class="st-pts">SLASH 200</span></li>
+                        <li><i class="st-icon st-sector" title="Sector seal"></i><span class="st-dots"></span><span class="st-pts">SECTOR 500</span></li>
                     </ul>
                     <ul class="scoretable-col">
-                        <li><i class="st-icon st-relic1"></i><span class="st-dots"></span><span class="st-pts">100 PTS</span></li>
-                        <li><i class="st-icon st-relic2"></i><span class="st-dots"></span><span class="st-pts">300 PTS</span></li>
-                        <li><i class="st-icon st-relic3"></i><span class="st-dots"></span><span class="st-pts">500 PTS</span></li>
-                        <li><i class="st-icon st-mystery"></i><span class="st-dots"></span><span class="st-pts st-mystery-pts">MYSTERY</span></li>
+                        <li><i class="st-icon st-relic1" title="Mist Shard"></i><span class="st-dots"></span><span class="st-pts">MIST 100</span></li>
+                        <li><i class="st-icon st-relic2" title="Hook Sigil"></i><span class="st-dots"></span><span class="st-pts">SIGIL 300</span></li>
+                        <li><i class="st-icon st-relic3" title="Liquidity Prism"></i><span class="st-dots"></span><span class="st-pts">PRISM 500</span></li>
+                        <li><i class="st-icon st-mystery" title="Beacon / Finality"></i><span class="st-dots"></span><span class="st-pts st-mystery-pts">DEEP RELIC</span></li>
                     </ul>
                 </div>
                 <p class="scoretable-foot">MAX TIER #1 · ${maxTier} XRP · © 2026 LEAK RUNNER</p>
-                <p class="scoretable-disclaimer">FOES: BITWADDLE · HATGLIDE · SLIPKERNEL · SOURCEFLIP · <a href="docs/legal.html" target="_blank" rel="noopener noreferrer">Legal · ToS</a></p>
+                <p class="scoretable-disclaimer">EXPLOITS: BITWADDLE · HATGLIDE · SLIPKERNEL · SOURCEFLIP · <a href="docs/legal.html" target="_blank" rel="noopener noreferrer">Legal · ToS</a></p>
                 <p class="scoretable-repo"><a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">${REPO_LABEL}</a></p>
             </article>
         `;
@@ -646,9 +645,9 @@ class Web3Simulator {
             if (s.kind === 'scoretable') return this.renderScoreTableSlide(on, s.maxTier);
             return `
             <article class="banner-slide ${s.kind}${on ? ' active' : ''}" data-i="${i}">
-                <span class="banner-kicker">${s.kicker}</span>
-                <h3 class="banner-title">${s.title}</h3>
-                <p class="banner-body">${s.body}</p>
+                <span class="banner-kicker">${this.escapeHtml(s.kicker)}</span>
+                <h3 class="banner-title">${this.escapeHtml(s.title)}</h3>
+                <p class="banner-body">${this.escapeHtml(s.body)}</p>
             </article>`;
         }).join('');
         const dots = document.getElementById('start-banner-dots');
@@ -672,7 +671,7 @@ class Web3Simulator {
         this.resetBannerCycleTimer();
     }
 
-    // ——— Full-lobby attract: Gaplus-style TOP 5 while waiting for a player ———
+    // ——— Full-lobby attract: arcade TOP 5 while waiting for a player ———
 
     padScore(n) {
         const fmt = typeof formatScoreText === 'function' ? formatScoreText : null;
@@ -698,10 +697,10 @@ class Web3Simulator {
         // Top 4 from ledger / fillers; last visible credit slot reserved for creator nick
         const board = this.scoreboard.board.slice(0, 4);
         const placeholders = [
-            { score: 50000, account: 'LEAKRU', drops: 240, epoch: 1 },
-            { score: 42000, account: 'XAMAN', drops: 210, epoch: 1 },
-            { score: 35000, account: 'MAKEWV', drops: 180, epoch: 1 },
-            { score: 28000, account: 'XRPL', drops: 150, epoch: 1 }
+            { score: 50000, account: 'NODEZERO', drops: 240, epoch: 1 },
+            { score: 42000, account: 'VAULTKIN', drops: 210, epoch: 1 },
+            { score: 35000, account: 'LEAKOPS', drops: 180, epoch: 1 },
+            { score: 28000, account: 'GRIDFOX', drops: 150, epoch: 1 }
         ];
         const credit = {
             score: 13370,
@@ -746,7 +745,7 @@ class Web3Simulator {
             <tr>
                 <td class="attract-rank">${i + 1}</td>
                 <td>${this.padScore(r.score)}</td>
-                <td>${r.name}</td>
+                <td>${this.escapeHtml(r.name)}</td>
                 <td>${r.drops}</td>
                 <td>#${r.epoch}</td>
             </tr>
@@ -825,7 +824,7 @@ class Web3Simulator {
             const you = row.account === this.getScoreAccountKey() ? ' you' : '';
             return `<li class="lb-row${you}">
                 <span class="lb-rank">#${i + 1}</span>
-                <span class="lb-addr">${row.account}</span>
+                <span class="lb-addr">${this.escapeHtml(row.account)}</span>
                 <span class="lb-score">${this.formatScoreDisplay(row.score)}</span>
             </li>`;
         }).join('');
@@ -970,18 +969,28 @@ class Web3Simulator {
         this.performXamanConnect();
     }
 
+    /** Escape untrusted text before it hits innerHTML (accounts, labels, device ids). */
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     log(message, type = 'system') {
         const entry = document.createElement('div');
         entry.className = `log-entry ${type}`;
         
         let prefix = "";
         if (type === 'tx') prefix = "<i class='fa-solid fa-water'></i> [XRPL] ";
-        else if (type === 'zk') prefix = "<i class='fa-solid fa-fingerprint'></i> [Proof] ";
+        else if (type === 'zk') prefix = "<i class='fa-solid fa-fingerprint'></i> [Memo] ";
         else if (type === 'event') prefix = "<i class='fa-solid fa-circle-check'></i> [Event] ";
         else if (type === 'alert') prefix = "<i class='fa-solid fa-triangle-exclamation'></i> [Alert] ";
         
         const timestamp = new Date().toLocaleTimeString();
-        entry.innerHTML = `<span style="color: #666">[${timestamp}]</span> ${prefix}${message}`;
+        entry.innerHTML = `<span style="color: #666">[${timestamp}]</span> ${prefix}${this.escapeHtml(message)}`;
         this.logsContainer.appendChild(entry);
         this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
     }
@@ -996,14 +1005,14 @@ class Web3Simulator {
         return { hash, block: this.ledgerIndex };
     }
 
-    creditEth(amount) {
-        this.ethBalance = this.roundXrp(this.ethBalance + amount);
-        if (this.valEthBalance) this.valEthBalance.textContent = this.ethBalance.toFixed(6);
+    creditXrp(amount) {
+        this.xrpBalance = this.roundXrp(this.xrpBalance + amount);
+        if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
     }
 
     debitXrp(amount) {
-        this.ethBalance = Math.round((this.ethBalance - amount) * 1e9) / 1e9;
-        if (this.valEthBalance) this.valEthBalance.textContent = this.ethBalance.toFixed(6);
+        this.xrpBalance = Math.round((this.xrpBalance - amount) * 1e9) / 1e9;
+        if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
     }
 
     connectWallet() {
@@ -1029,7 +1038,7 @@ class Web3Simulator {
                 try { localStorage.setItem('leakrunner_xaman_addr', stored); } catch (_) {}
             }
             this.walletAddress = stored;
-            this.ethBalance = XRPL.START_BALANCE;
+            this.xrpBalance = XRPL.START_BALANCE;
             this.activeHeroId = "#" + (Math.floor(Math.random() * 900) + 100);
             this.refreshScoreUI();
             const best = this.getWalletRecord().highScore;
@@ -1045,7 +1054,7 @@ class Web3Simulator {
                 this.btnConnect.style.opacity = "0.75";
             }
             
-            if (this.valEthBalance) this.valEthBalance.textContent = this.ethBalance.toFixed(6);
+            if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
             if (this.valHeroNft) this.valHeroNft.textContent = this.activeHeroId;
             if (this.valHeroClass) this.valHeroClass.textContent = this.activeHeroSkin;
             
@@ -1053,14 +1062,11 @@ class Web3Simulator {
             this.btnSessionKeys.disabled = false;
 
             this.log(`Xaman connected: ${this.walletAddress}`, 'system');
-            this.log(`XRPL balance: ${this.ethBalance.toFixed(6)} XRP`, 'system');
+            this.log(`XRPL balance: ${this.xrpBalance.toFixed(6)} XRP`, 'system');
             this.log(`Node NFT detected (XLS-20): ${this.activeHeroId}`, 'event');
             this.log("Tip: open a Payment Channel so drop rewards settle without signing every harvest.", 'zk');
             
-            setTimeout(() => {
-                this.inventory = [];
-                this.updateInventoryUI();
-            }, 600);
+            this.inventory = [];
         }, 1000);
     }
 
@@ -1125,7 +1131,7 @@ class Web3Simulator {
         }
 
         if (!this.isConnected || this.gameActive) return;
-        if (this.ethBalance < XRPL.ENTRY_STAKE) {
+        if (this.xrpBalance < XRPL.ENTRY_STAKE) {
             this.log(`Insufficient XRP. Stake requires ${XRPL.ENTRY_STAKE} XRP from Xaman.`, 'alert');
             return;
         }
@@ -1159,22 +1165,23 @@ class Web3Simulator {
 
     eatGhostTransaction(ghostId) {
         if (!this.gameActive) return;
-        if (window.retroAudio) window.retroAudio.playEatGhost();
+        // Scream + onomatopoeia FX are played by GameEngine.slashPenguinFx
         const roster = (typeof GRID_PENGUINS !== 'undefined' && GRID_PENGUINS) || null;
         const names = roster
             ? roster.map(d => d.name)
             : ['Bitwaddle', 'Hatglide', 'Slipkernel', 'Sourceflip'];
         const name = names[ghostId] || `Penguin#${ghostId}`;
+        const ono = roster?.[ghostId]?.ono ? ` ${roster[ghostId].ono}` : '';
         this.accrueChannelReward(XRPL.EXPLOIT_SLASH, `slash:${name}`);
-        this.log(`Audit slash ${name} · +${XRPL.EXPLOIT_SLASH} XRP accrued (settle later).`, 'event');
+        this.log(`Audit slash — ${name}${ono} · +${XRPL.EXPLOIT_SLASH} XRP accrued (settle on Claim).`, 'event');
     }
 
     collectRelicTransaction(relic) {
         if (!relic) return;
         this.inventory.push(relic.id);
-        this.updateInventoryUI();
         this.accrueChannelReward(relic.xrp, `relic:${relic.name}`);
-        this.log(`Relic ${relic.name} · +${relic.xrp} XRP accrued · +${relic.score} pts`, 'event');
+        const ono = relic.ono ? ` ${relic.ono}` : '';
+        this.log(`Relic seized — ${relic.name}${ono} · +${relic.xrp} XRP · +${relic.score} pts`, 'event');
     }
 
     loseLifeTransaction(remainingLives) {
@@ -1182,7 +1189,7 @@ class Web3Simulator {
         if (window.retroAudio) window.retroAudio.playDeath();
         if (this.isBypassMode) return;
 
-        this.log(`Uptime hit. Restarts left: ${remainingLives}. Memo logged on XRPL...`, 'alert');
+        this.log(`Uptime breached. Restarts left: ${remainingLives}. Memo inked on the ledger…`, 'alert');
         
         setTimeout(() => {
             const { hash, block } = this.getNewTxHash();
@@ -1202,7 +1209,7 @@ class Web3Simulator {
             const stats = this.captureRunStats();
             
             if (stats.relics > 0) {
-                this.log(`Escrow notes ${stats.relics} Ledger Relic(s) vaulted this run.`, 'event');
+                this.log(`Escrow notes ${stats.relics} Relic(s) vaulted this run.`, 'event');
             }
 
             this.log(`Escrow release · ledger ${block} · ${hash.slice(0, 14)}...`, 'tx');
@@ -1247,13 +1254,13 @@ class Web3Simulator {
             return;
         }
         
-        this.log("UPTIME 0 — initiating NFTokenBurn (Node slash / liquidation)...", 'alert');
+        this.log('UPTIME 0 — Node slashed. Initiating NFTokenBurn…', 'alert');
         this.gameActive = false;
         
         setTimeout(() => {
             const { hash, block } = this.getNewTxHash();
             this.log(`NFTokenBurn ${this.activeHeroId} · ledger ${block} · ${hash.slice(0, 14)}...`, 'tx');
-            this.log(`Node NFT ${this.activeHeroId} permanently burned on XRPL.`, 'alert');
+            this.log(`Node NFT ${this.activeHeroId} burned on the ledger. Session sealed.`, 'alert');
             
             this.showGameOverModal({
                 heroLabel: `Node ${this.activeHeroId}`,
@@ -1294,14 +1301,14 @@ class Web3Simulator {
         if (finalDrops) finalDrops.textContent = String(drops);
         if (bestEl) bestEl.textContent = this.formatScoreDisplay(best);
         if (recordEl) {
-            recordEl.textContent = isRecord ? '★ NEW HIGH SCORE' : '';
+            recordEl.textContent = isRecord ? '★ NEW LEDGER RECORD' : '';
             recordEl.style.display = isRecord ? 'block' : 'none';
         }
         const sub = modal.querySelector('.subtext');
         if (sub && demo) {
-            sub.textContent = 'DEMO MODE — SCORE SAVED LOCALLY AS XRPL SCORECOMMIT CACHE.';
+            sub.textContent = 'DEMO MODE — ScoreCommit cached locally. Stake live XRP to mint a real Node.';
         } else if (sub) {
-            sub.textContent = 'STAKE XRP · MINT A NEW NODE · REJOIN THE GRID.';
+            sub.textContent = 'STAKE XRP · MINT A NEW NODE · REJOIN THE SECURITHON GRID.';
         }
         modal.style.display = 'flex';
         this.pauseAttractCycle();
@@ -1328,7 +1335,7 @@ class Web3Simulator {
         this.btnStartRun.className = "btn btn-success";
         this.btnStartRun.disabled = true;
         this.btnSessionKeys.disabled = true;
-        this.valEthBalance.textContent = "0.000000";
+        this.valXrpBalance.textContent = "0.000000";
         this.refreshScoreUI();
     }
 
@@ -1343,43 +1350,18 @@ class Web3Simulator {
         this.hideAttractScreen(true);
     }
 
-    updateInventoryUI() {
-        const slotsEl = document.getElementById('inventory-slots');
-        if (!slotsEl) return;
-        slotsEl.innerHTML = '';
-        
-        const itemsInfo = {
-            1: { name: "Spray Shard", icon: "fa-gem", class: "equipped" },
-            2: { name: "Hook Glyph", icon: "fa-bezier-curve", class: "equipped" },
-            3: { name: "AMM Prism", icon: "fa-cubes", class: "equipped" },
-            4: { name: "Validator Crest", icon: "fa-award", class: "equipped" },
-            5: { name: "Consensus Orb", icon: "fa-circle-nodes", class: "equipped" }
-        };
-        const order = [1, 2, 3, 4, 5];
-        const owned = new Set(this.inventory);
-
-        order.forEach((itemId) => {
-            const slot = document.createElement('div');
-            const item = itemsInfo[itemId];
-            if (owned.has(itemId)) {
-                slot.className = `slot ${item.class}`;
-                slot.title = item.name;
-                slot.innerHTML = `<i class="fa-solid ${item.icon}"></i>`;
-            } else {
-                slot.className = "slot empty";
-                slot.title = item.name;
-                slot.innerHTML = `<i class="fa-solid ${item.icon}"></i>`;
-            }
-            slotsEl.appendChild(slot);
-        });
-    }
-
     toggleBypassMode(checked) {
         this.isBypassMode = checked;
         if (window.retroAudio) window.retroAudio.playClick();
         
         if (checked) {
             this.log("Demo Mode: XRPL/Xaman bypassed for local playtesting.", "alert");
+            try {
+                if (!localStorage.getItem('leakrunner_demo_notice')) {
+                    localStorage.setItem('leakrunner_demo_notice', 'shown');
+                    this.log('Demo Mode is a local simulation — no real XRP moves. See Legal · ToS for details.', 'system');
+                }
+            } catch (_) {}
             if (this.btnStartRun) {
                 this.btnStartRun.disabled = false;
                 this.btnStartRun.innerHTML = "<i class='fa-solid fa-play'></i> Demo Boot";
@@ -1424,7 +1406,7 @@ class Web3Simulator {
             }
             
             const cost = XRPL.SKIN_COST;
-            if (this.ethBalance < cost) {
+            if (this.xrpBalance < cost) {
                 this.log(`Need ${cost} XRP in Xaman for this skin.`, "alert");
                 return;
             }

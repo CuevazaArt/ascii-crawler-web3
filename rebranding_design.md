@@ -6,19 +6,24 @@ This document outlines the visual and narrative design of Leak Runner as an orig
 
 | Element | Leak Runner name | Web3 thematic concept |
 | :--- | :--- | :--- |
-| Player | **The Node** / **Securithon** | Pulsing pixel vault / digital wallet icon |
-| Collectibles | **Drops** / **Transactions** | Micro-ledger data points worth XRP drops |
-| Foes | **Exploits** / penguin swarm | Threat nodes trying to slash / liquidate the vault |
-| Power-ups | **Audit Certs** / **Shields** | Temporary clearance that exposes bugs to slashing |
-| Lives | **Uptime Node Health** | Restarts allowed before permadeath slashing |
-| Defeat | **Slashing / Liquidation** | On-chain burn of the Node NFT on failure |
+| World | **Securithon Grid** | Arcade sectors where Nodes leak value and Exploits hunt uptime |
+| Player | **The Node** | Pixel vault-core; boot with stake, die via slash / NFT burn |
+| Collectibles | **Drops** | Micro-ledger data points worth score + channel XRP |
+| Power-ups | **Audit Certs** | Temporary clearance that exposes Exploits to slashing |
+| Boss loot | **Ledger Relics** | Mist Shard · Hook Sigil · Liquidity Prism · Beacon Crest · Finality Orb |
+| Foes | **Exploits** (penguin swarm) | Threat agents trying to compromise Node uptime |
+| Lives | **Uptime** | Restarts before permadeath liquidation |
+| Defeat | **Node Liquidated** | On-chain `NFTokenBurn` of the Node when uptime hits 0 |
+| Depth | **Sectors** | Cold Start → Packet Drift → Hook Alley → Mist Market → Beacon Row → Finality Gate → Deep Leak → Null Harbor |
+
+**Pitch line:** Boot a Node on the Securithon Grid. Harvest Drops, seize Relics, slash Exploits — before they slash you.
 
 ## 2. Enemy profiles (original penguins)
 
-*   **Bitwaddle** — Relentless chase targeting the Node’s vault.
-*   **Hatglide** — Predictive pathing several flaps ahead of the player.
-*   **Slipkernel** — Complex tracking that uses other penguins as fulcrums.
-*   **Sourceflip** — Closes from afar, scatters when stared down.
+*   **Bitwaddle** — *Vault Hound.* Locks onto uptime and waddles until the vault cracks.
+*   **Hatglide** — *Path Prophet.* Tips the brim; reads four corridors ahead.
+*   **Slipkernel** — *Warp Anchor.* Belly-slides through Bitwaddle’s wake to fold the grid short.
+*   **Sourceflip** — *Far Flare.* Strikes from the sector rim; flips when Audit light hits.
 
 ## 3. Future catalog prospects
 
@@ -44,5 +49,5 @@ This document outlines the visual and narrative design of Leak Runner as an orig
 
 ## 4. XRPL integration highlights
 *   **Micropayouts:** Small XRP drop distributions via Payment Channels / claims.
-*   **XLS-20 NFT Burn:** Native `NFTokenBurn` when Node Uptime Health reaches 0.
+*   **XLS-20 NFT Burn:** Native `NFTokenBurn` when Node Uptime reaches 0.
 *   **Legal:** Live mainnet may charge real XRP — see `docs/LEGAL.md`. Demo Mode is simulated.

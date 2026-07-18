@@ -31,7 +31,9 @@ By connecting a wallet (including Xaman), staking or paying XRP, enabling Demo M
 
 2.2. **Fair use / buen uso of branding & lore:** You may reference Leak Runner / Securithon for commentary, education, and compatible forks, provided you do not misrepresent affiliation, do not remove required notices, and do not use project marks to deceive users.
 
-2.3. Game assets, copy, and documentation in this repository are covered by the same license unless a file states otherwise. Third-party fonts and icon libraries remain under their own licenses (e.g. Google Fonts, Font Awesome).
+2.3. Game assets, copy, and documentation in this repository are covered by the same license unless a file states otherwise. Third-party fonts and icon libraries remain under their own licenses:
+   - **Font Awesome Free** (UI icons, loaded via CDN, unmodified) — icons under CC BY 4.0, code under MIT. Attribution: [fontawesome.com](https://fontawesome.com).
+   - **Google Fonts** (web fonts, loaded via CDN) — served under their respective open font licenses (OFL/Apache).
 
 2.4. Contributors grant the same MIT rights in their contributions unless they agree otherwise in writing.
 

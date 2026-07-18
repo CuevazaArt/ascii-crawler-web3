@@ -13,6 +13,7 @@ class LeakRunnerAudioEngine {
         this.step = 0;
         this.pickupToggle = false;
         this.bpm = 128;
+        this.threat = 0; // 0..1 — set by the engine as the sector empties
     }
 
     init() {
@@ -98,19 +99,19 @@ class LeakRunnerAudioEngine {
         this.isMusicPlaying = true;
         this.isAudited = isAudited;
         this.step = 0;
-        this.bpm = isAudited ? 148 : 126;
-
-        const stepMs = (60 / this.bpm) * 1000 / 2; // 8th notes
 
         // Bass pattern (root motion)
         const bass = isAudited
             ? [0, 0, 3, 0, 5, 5, 3, 0, 0, 0, 7, 5, 3, 0, -2, 0]
             : [0, null, 0, 3, null, 3, 5, null, 0, null, 7, 5, 3, null, 0, -5];
 
-        // Lead arpeggio
-        const lead = isAudited
+        // Lead arpeggio (A section) + darker B section every other bar pair
+        const leadA = isAudited
             ? [12, 15, 19, 15, 12, 15, 17, 19, 12, 10, 8, 10, 12, 15, 17, 19]
             : [12, null, 15, 12, 19, null, 15, 12, 17, null, 15, 12, 19, 15, 12, null];
+        const leadB = isAudited
+            ? [19, 17, 15, 17, 19, 20, 19, 17, 15, 14, 12, 14, 15, 17, 19, 22]
+            : [8, null, 12, 8, 15, null, 12, 8, 10, null, 14, 10, 17, 15, 12, null];
 
         // Harmony (soft fifths)
         const harm = isAudited
@@ -121,7 +122,14 @@ class LeakRunnerAudioEngine {
             if (!this.isMusicPlaying || !this.ctx) return;
             if (this.ctx.state === 'suspended') this.ctx.resume();
 
+            // Tempo climbs with sector threat (up to +26 bpm)
+            const threat = Math.max(0, Math.min(1, this.threat || 0));
+            this.bpm = (this.isAudited ? 148 : 126) + threat * 26;
+            const stepMs = (60 / this.bpm) * 1000 / 2; // 8th notes
+
             const i = this.step % 16;
+            const section = Math.floor(this.step / 32) % 2; // A A B B phrasing
+            const lead = section === 0 ? leadA : leadB;
             const t = this.ctx.currentTime;
 
             // Kick on 0, 4, 8, 12
@@ -129,13 +137,17 @@ class LeakRunnerAudioEngine {
                 this.playTone(90, 'sine', 0.12, 0.22, 45, t);
                 this.playNoise(0.04, 0.06, t);
             }
-            // Hat on offs
-            if (i % 2 === 1) {
+            // Hat on offs — denser under high threat
+            if (i % 2 === 1 || (threat > 0.6 && i % 4 === 2)) {
                 this.playNoise(0.025, 0.035, t);
             }
 
             if (bass[i] !== null && bass[i] !== undefined) {
                 this.playTone(this.note(bass[i] - 12), 'triangle', stepMs / 1000 * 0.9, 0.14, 0, t);
+                // Sub-octave shadow when the grid is nearly stripped
+                if (threat > 0.75) {
+                    this.playTone(this.note(bass[i] - 24), 'sine', stepMs / 1000 * 0.9, 0.07, 0, t);
+                }
             }
             if (lead[i] !== null && lead[i] !== undefined) {
                 const vol = this.isAudited ? 0.09 : 0.07;
@@ -145,9 +157,10 @@ class LeakRunnerAudioEngine {
                 this.playTone(this.note(harm[i]), 'sine', stepMs / 1000 * 0.7, 0.05, 0, t);
             }
 
-            // Rising siren accent in audit mode
-            if (this.isAudited && i === 0) {
-                this.playTone(400, 'sawtooth', 0.2, 0.04, 700, t);
+            // Rising siren accent: always in audit mode, creeping in at high threat
+            if (i === 0 && (this.isAudited || threat > 0.55)) {
+                const base = this.isAudited ? 400 : 300 + threat * 160;
+                this.playTone(base, 'sawtooth', 0.2, this.isAudited ? 0.04 : 0.03, base + 300, t);
             }
 
             this.step++;
@@ -173,22 +186,67 @@ class LeakRunnerAudioEngine {
     }
 
     playEatGhost() {
+        this.playPenguinScream(1, 0);
+    }
+
+    /**
+     * Penguin death scream — descending squeal + chirp, pitch per foe.
+     * @param {number} pitch
+     * @param {number} [id]
+     */
+    playPenguinScream(pitch = 1, id = 0) {
         this.resume();
         const t = this.ctx.currentTime;
-        this.playTone(220, 'square', 0.1, 0.14, 0, t);
-        this.playTone(330, 'square', 0.1, 0.14, 0, t + 0.08);
-        this.playTone(440, 'square', 0.1, 0.14, 0, t + 0.16);
-        this.playTone(660, 'square', 0.14, 0.12, 0, t + 0.24);
+        const p = Math.max(0.7, Math.min(1.4, pitch));
+        const base = [520, 480, 390, 610][id % 4] * p;
+
+        // Sharp hit
+        this.playTone(base * 1.4, 'square', 0.05, 0.16, base * 0.9, t);
+        // Descending scream
+        this.playTone(base, 'sawtooth', 0.22, 0.15, base * 0.35, t + 0.04);
+        this.playTone(base * 0.75, 'triangle', 0.18, 0.1, base * 0.25, t + 0.12);
+        // Cartoon chirp trail
+        this.playTone(base * 1.8, 'square', 0.06, 0.1, base * 2.2, t + 0.22);
+        this.playTone(base * 0.5, 'square', 0.1, 0.08, base * 0.2, t + 0.28);
+        this.playNoise(0.08, 0.05, t + 0.02);
+    }
+
+    /**
+     * Relic seize sting — unique color per relic key.
+     * @param {string} [key]
+     */
+    playRelicSeize(key = 'spray') {
+        this.resume();
+        const t = this.ctx.currentTime;
+        const voicing = {
+            spray:     [660, 880, 1180],
+            hook:      [392, 523, 784],
+            amm:       [523, 659, 987],
+            validator: [587, 740, 1175],
+            consensus: [349, 523, 698, 1046]
+        };
+        const notes = voicing[key] || voicing.spray;
+        notes.forEach((f, i) => {
+            this.playTone(f, i % 2 ? 'triangle' : 'square', 0.11, 0.11, f * 1.05, t + i * 0.07);
+        });
+        this.playTone(notes[notes.length - 1] * 1.5, 'sine', 0.16, 0.08, notes[0], t + notes.length * 0.07);
     }
 
     playDeath() {
         this.stopMusic();
         this.resume();
         const t = this.ctx.currentTime;
-        for (let i = 0; i < 10; i++) {
-            const f = 720 - i * 55;
-            this.playTone(f, 'sawtooth', 0.09, 0.12, f - 120, t + i * 0.08);
+        // Impact slam
+        this.playTone(90, 'square', 0.14, 0.22, 40, t);
+        this.playTone(180, 'sawtooth', 0.1, 0.18, 60, t + 0.04);
+        // Descending breach wail
+        for (let i = 0; i < 12; i++) {
+            const f = 780 - i * 58;
+            this.playTone(f, 'sawtooth', 0.085, 0.11, f - 140, t + 0.08 + i * 0.075);
         }
+        // Final crack
+        this.playTone(220, 'square', 0.08, 0.16, 55, t + 1.0);
+        this.playTone(110, 'triangle', 0.12, 0.14, 40, t + 1.05);
     }
 
     playFruit() {
@@ -210,6 +268,40 @@ class LeakRunnerAudioEngine {
         this.playTone(392, 'square', 0.1, 0.12, 0, t);
         this.playTone(523.25, 'square', 0.12, 0.12, 0, t + 0.1);
         this.playTone(659.25, 'square', 0.18, 0.14, 0, t + 0.22);
+    }
+
+    /** READY! jingle — plays over the frozen sector-intro card. */
+    playReady() {
+        this.resume();
+        const t = this.ctx.currentTime;
+        [330, 415, 494, 659].forEach((f, i) => {
+            this.playTone(f, 'square', 0.13, 0.11, 0, t + i * 0.13);
+        });
+        // Closing chord
+        this.playTone(659, 'square', 0.3, 0.09, 0, t + 0.56);
+        this.playTone(494, 'triangle', 0.3, 0.08, 0, t + 0.56);
+        this.playTone(330, 'triangle', 0.34, 0.07, 0, t + 0.56);
+    }
+
+    /** Sector sealed — triumphant sweep + fast victory arpeggio. */
+    playSectorClear() {
+        this.resume();
+        const t = this.ctx.currentTime;
+        this.playTone(220, 'sawtooth', 0.4, 0.07, 880, t);
+        [523.25, 659.25, 783.99, 1046.5, 1318.5, 1568].forEach((f, i) => {
+            this.playTone(f, 'square', 0.1, 0.1, 0, t + 0.1 + i * 0.07);
+        });
+        this.playTone(1568, 'triangle', 0.35, 0.09, 1046.5, t + 0.56);
+        this.playNoise(0.12, 0.05, t + 0.1);
+    }
+
+    /** Relic materialized — urgent double ping so you look at the pad. */
+    playRelicSpawn() {
+        this.resume();
+        const t = this.ctx.currentTime;
+        this.playTone(988, 'sine', 0.09, 0.11, 1318, t);
+        this.playTone(988, 'sine', 0.09, 0.11, 1318, t + 0.16);
+        this.playTone(1318, 'triangle', 0.14, 0.07, 988, t + 0.32);
     }
 
     playGameOver() {

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=39">
+    <link rel="stylesheet" href="style.css?v=62">
 </head>
 <body>
     <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -23,7 +23,7 @@
                 </div>
                 <div class="logo-text">
                     <span class="retro-title neon-text">LEAK RUNNER</span>
-                    <span class="logo-tagline">Securithon Protocol · built for XRPL demos</span>
+                    <span class="logo-tagline">Securithon Grid · boot a Node · leak the ledger</span>
                 </div>
                 <span class="web3-badge" title="Educational XRPL economy demo">
                     <span class="web3-badge-dot" aria-hidden="true"></span>
@@ -74,9 +74,9 @@
             </div>
             <div class="attract-logo">
                 <span class="attract-logo-text">LEAK RUNNER</span>
-                <span class="attract-logo-sub">SECURITHON · XRPL DEMO</span>
+                <span class="attract-logo-sub">SECURITHON GRID · XRPL DEMO</span>
             </div>
-            <h2 class="attract-heading">TOP 5 PLAYERS</h2>
+            <h2 class="attract-heading">TOP 5 NODES</h2>
             <div class="attract-table-wrap">
                 <table class="attract-table">
                     <thead>
@@ -91,8 +91,8 @@
                     <tbody id="attract-table-body"></tbody>
                 </table>
             </div>
-            <p class="attract-credit">PRESS <kbd>S</kbd> · STAKE 0.5 XRP · BOOT NODE</p>
-            <p class="attract-copy">© 2026 LEAK RUNNER · BUILT FOR XRPL DEMOS</p>
+            <p class="attract-credit">PRESS <kbd>S</kbd> · STAKE 0.5 XRP · BOOT THE NODE</p>
+            <p class="attract-copy">© 2026 LEAK RUNNER · SECURITHON PROTOCOL</p>
             <p class="attract-disclaimer">AS IS · MAINNET MAY CHARGE REAL XRP · NO REFUNDS GUARANTEED · SEE LEGAL · ToS</p>
             <p class="attract-repo">
                 <a href="https://github.com/CuevazaArt/ascii-crawler-web3" target="_blank" rel="noopener noreferrer">github.com/CuevazaArt/ascii-crawler-web3</a>
@@ -149,7 +149,7 @@
                         </div>
                         <div class="stat-item eth-balance-row">
                             <span class="stat-label"><i class="fa-solid fa-coins text-warning"></i> XRP:</span>
-                            <span class="stat-value text-info font-bold"><span id="val-rouge-balance">0.000000</span> XRP</span>
+                            <span class="stat-value text-info font-bold"><span id="val-xrp-balance">0.000000</span> XRP</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Pending:</span>
@@ -206,13 +206,14 @@
 
                 <div class="card lore-card">
                     <h2 class="card-title"><i class="fa-solid fa-book-skull text-danger"></i> EXPLOIT DOSSIER</h2>
+                    <p class="lore-lead">Four leaks hunt every Node on the Securithon Grid. Learn them — or burn.</p>
                     <div class="exploit-lore-list" id="exploit-lore-list"></div>
                 </div>
 
                 <div class="card logs-card">
                     <h2 class="card-title"><i class="fa-solid fa-water text-secondary"></i> LEDGER LOGS</h2>
                     <div class="logs-container" id="logs-container">
-                        <div class="log-entry system">Awaiting Xaman · educational XRPL micropayments demo.</div>
+                        <div class="log-entry system">Grid idle · awaiting Xaman or Demo Mode to boot a Node.</div>
                     </div>
                 </div>
             </aside>
@@ -226,7 +227,7 @@
                             <span class="dot yellow"></span>
                             <span class="dot green"></span>
                         </div>
-                        <div class="terminal-title">SECURITHON GRID — SECTOR <span id="lbl-level">1</span></div>
+                        <div class="terminal-title">SECURITHON GRID — SECTOR <span id="lbl-level">1 · Cold Start</span></div>
                         <div class="fps-counter">-- FPS</div>
                     </div>
                     
@@ -238,8 +239,8 @@
                                     <span class="hud-value text-warning" id="hud-score">0</span>
                                 </div>
                                 <div class="hud-chip hud-lives-chip">
-                                    <span class="hud-label">LIVES</span>
-                                    <div class="hud-lives-row" id="hud-lives" aria-label="Lives"></div>
+                                    <span class="hud-label">UPTIME</span>
+                                    <div class="hud-lives-row" id="hud-lives" aria-label="Uptime"></div>
                                 </div>
                                 <div class="hud-chip hud-relics-chip">
                                     <span class="hud-label">RELICS</span>
@@ -250,7 +251,10 @@
                                     <span class="hud-value text-secondary" id="hud-tier">0.000 XRP</span>
                                 </div>
                             </div>
-                            <canvas id="game-canvas" width="580" height="340"></canvas>
+                            <div class="canvas-stack">
+                                <canvas id="game-canvas" width="580" height="340"></canvas>
+                                <div class="fx-bursts" id="fx-bursts" aria-hidden="true"></div>
+                            </div>
                         </div>
                         
                         <div class="start-screen-prompt" id="start-prompt">
@@ -259,7 +263,7 @@
                                 <div class="start-banner-dots" id="start-banner-dots"></div>
                             </div>
                             <p class="blink text-primary">Stake 0.5 XRP · Boot the Node</p>
-                            <p class="subtext">Earn in-channel · settle on Claim · chase the prize bags.</p>
+                            <p class="subtext">Harvest Drops · seize Relics · slash Exploits · settle on Claim.</p>
                             <div class="start-action-block">
                                 <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game">
                                     <span class="arcade-start-label">START</span>
@@ -273,7 +277,7 @@
                                     </p>
                                     <p class="controls-pad">
                                         <i class="fa-solid fa-gamepad" aria-hidden="true"></i>
-                                        Mando supported
+                                        Gamepad supported
                                     </p>
                                 </div>
                             </div>
@@ -343,18 +347,111 @@
         <div class="modal-content gameover-arcade text-center" role="dialog" aria-labelledby="go-title">
             <div class="go-stars" aria-hidden="true"></div>
             <p class="go-kicker">GAME OVER</p>
-            <h1 id="go-title" class="go-title blink">NODE SLASHED</h1>
-            <div class="permadeath-avatar">
-                <i class="fa-solid fa-skull-crossbones" aria-hidden="true"></i>
-                <div class="burn-animation" id="burn-anim"></div>
+            <h1 id="go-title" class="go-title blink">NODE LIQUIDATED</h1>
+            <div class="permadeath-avatar" aria-hidden="true">
+                <!-- Jolly-roger build: cranium with fixed upper-teeth row, mandible
+                     that drops below it, crossbones X behind the lower half (ends at
+                     temples + bottom corners). No feature under 2×2 units. -->
+                <svg class="go-skull-svg" viewBox="0 0 32 40" width="128" height="160" focusable="false" shape-rendering="crispEdges">
+                    <!-- Crossbones X behind the jaw: double-knob ends at chin height
+                         and bottom corners (kept clear of eye level — no "ears") -->
+                    <g class="go-skull-bones" fill="#cbbb9c">
+                        <!-- Chin-height ends -->
+                        <rect x="0" y="20" width="4" height="4"/><rect x="0" y="24" width="4" height="4"/><rect x="3" y="22" width="4" height="4"/>
+                        <rect x="28" y="20" width="4" height="4"/><rect x="28" y="24" width="4" height="4"/><rect x="25" y="22" width="4" height="4"/>
+                        <!-- Bottom-corner ends (no shaft steps — they crowded the jaw) -->
+                        <rect x="0" y="32" width="4" height="4"/><rect x="0" y="36" width="4" height="4"/><rect x="3" y="34" width="4" height="4"/>
+                        <rect x="28" y="32" width="4" height="4"/><rect x="28" y="36" width="4" height="4"/><rect x="25" y="34" width="4" height="4"/>
+                    </g>
+
+                    <!-- Cranium: wide dome tapering to the tooth row -->
+                    <g class="go-skull-head">
+                        <g fill="#f2e9d6">
+                            <rect x="10" y="0" width="12" height="2"/>
+                            <rect x="8" y="2" width="16" height="2"/>
+                            <rect x="6" y="4" width="20" height="2"/>
+                            <rect x="4" y="6" width="24" height="8"/>
+                            <rect x="6" y="14" width="20" height="2"/>
+                            <rect x="6" y="16" width="20" height="2"/>
+                            <rect x="8" y="18" width="16" height="2"/>
+                        </g>
+                        <!-- Crown highlight -->
+                        <rect x="12" y="0" width="8" height="2" fill="#fffaf0"/>
+                        <!-- Octagonal sockets 7×7 -->
+                        <g fill="#0d0510">
+                            <rect x="6" y="7" width="7" height="7"/>
+                            <rect x="19" y="7" width="7" height="7"/>
+                        </g>
+                        <g fill="#f2e9d6">
+                            <rect x="6" y="7" width="2" height="2"/><rect x="11" y="7" width="2" height="2"/>
+                            <rect x="6" y="12" width="2" height="2"/><rect x="11" y="12" width="2" height="2"/>
+                            <rect x="19" y="7" width="2" height="2"/><rect x="24" y="7" width="2" height="2"/>
+                            <rect x="19" y="12" width="2" height="2"/><rect x="24" y="12" width="2" height="2"/>
+                        </g>
+                        <!-- Glowing pupils, centered -->
+                        <g fill="#ff1744">
+                            <rect x="8" y="9" width="3" height="3"/>
+                            <rect x="21" y="9" width="3" height="3"/>
+                        </g>
+                        <!-- Nasal cavity: widens downward -->
+                        <g fill="#0d0510">
+                            <rect x="14" y="14" width="4" height="2"/>
+                            <rect x="13" y="16" width="6" height="2"/>
+                        </g>
+                        <!-- Cheek shading -->
+                        <g fill="#d8cbae">
+                            <rect x="6" y="16" width="4" height="2"/>
+                            <rect x="22" y="16" width="4" height="2"/>
+                        </g>
+                        <!-- Fixed upper teeth: 3 chunky teeth hanging from the cranium -->
+                        <rect x="8" y="20" width="16" height="4" fill="#f2e9d6"/>
+                        <g fill="#0d0510">
+                            <rect x="12" y="20" width="2" height="4"/>
+                            <rect x="18" y="20" width="2" height="4"/>
+                        </g>
+                    </g>
+
+                    <!-- Mandible CLOSED: teeth gaps aligned with the upper row -->
+                    <g class="go-skull-jaw go-skull-jaw-closed">
+                        <rect x="8" y="26" width="16" height="6" fill="#f2e9d6"/>
+                        <g fill="#0d0510">
+                            <rect x="12" y="26" width="2" height="3"/>
+                            <rect x="18" y="26" width="2" height="3"/>
+                        </g>
+                        <rect x="8" y="30" width="16" height="2" fill="#d8cbae"/>
+                    </g>
+
+                    <!-- Mandible OPEN: same bar dropped -->
+                    <g class="go-skull-jaw go-skull-jaw-open">
+                        <rect x="8" y="30" width="16" height="6" fill="#f2e9d6"/>
+                        <g fill="#0d0510">
+                            <rect x="12" y="30" width="2" height="3"/>
+                            <rect x="18" y="30" width="2" height="3"/>
+                        </g>
+                        <rect x="8" y="34" width="16" height="2" fill="#d8cbae"/>
+                    </g>
+
+                    <!-- Tongues LAST — sized to the mouth gap so teeth stay visible -->
+                    <!-- Closed: small blep poking between the tooth rows -->
+                    <g class="go-skull-tongue go-skull-tongue-in">
+                        <rect x="14" y="24" width="4" height="3" fill="#e040fb"/>
+                        <rect x="14" y="26" width="4" height="2" fill="#c026f0"/>
+                    </g>
+                    <!-- Open: tongue fills the dark gap, stops at the dropped jaw -->
+                    <g class="go-skull-tongue go-skull-tongue-out">
+                        <rect x="13" y="24" width="6" height="2" fill="#f48fff"/>
+                        <rect x="12" y="26" width="8" height="2" fill="#e040fb"/>
+                        <rect x="13" y="28" width="6" height="2" fill="#c026f0"/>
+                    </g>
+                </svg>
             </div>
             <p class="go-status">UPTIME COLLAPSED</p>
-            <p class="go-status-sub">NFT BURN · DEMO SETTLE</p>
+            <p class="go-status-sub">NFTokenBurn · SESSION SEALED</p>
             <p class="go-flavor">
                 NODE <strong id="lbl-burned-hero">#0</strong>
                 <span class="go-burned">BURNED</span>
             </p>
-            <p class="go-subtext subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the grid.</p>
+            <p class="go-subtext subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the Securithon Grid.</p>
             <div class="score-summary go-scoreboard">
                 <p class="go-record" id="lbl-record-flag" style="display:none">★ NEW LEDGER RECORD</p>
                 <div class="go-stat-row">
@@ -378,9 +475,9 @@
         </div>
     </div>
 
-    <script src="score-format.js?v=39"></script>
-    <script src="audio.js?v=39"></script>
-    <script src="blockchain.js?v=39"></script>
-    <script src="game.js?v=39"></script>
+    <script src="score-format.js?v=45"></script>
+    <script src="audio.js?v=59"></script>
+    <script src="blockchain.js?v=58"></script>
+    <script src="game.js?v=64"></script>
 </body>
 </html>
