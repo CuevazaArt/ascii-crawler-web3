@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=62">
+    <link rel="stylesheet" href="style.css?v=67">
 </head>
 <body>
     <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -349,99 +349,110 @@
             <p class="go-kicker">GAME OVER</p>
             <h1 id="go-title" class="go-title blink">NODE LIQUIDATED</h1>
             <div class="permadeath-avatar" aria-hidden="true">
-                <!-- Jolly-roger build: cranium with fixed upper-teeth row, mandible
-                     that drops below it, crossbones X behind the lower half (ends at
-                     temples + bottom corners). No feature under 2×2 units. -->
-                <svg class="go-skull-svg" viewBox="0 0 32 40" width="128" height="160" focusable="false" shape-rendering="crispEdges">
-                    <!-- Crossbones X behind the jaw: double-knob ends at chin height
-                         and bottom corners (kept clear of eye level — no "ears") -->
-                    <g class="go-skull-bones" fill="#cbbb9c">
-                        <!-- Chin-height ends -->
-                        <rect x="0" y="20" width="4" height="4"/><rect x="0" y="24" width="4" height="4"/><rect x="3" y="22" width="4" height="4"/>
-                        <rect x="28" y="20" width="4" height="4"/><rect x="28" y="24" width="4" height="4"/><rect x="25" y="22" width="4" height="4"/>
-                        <!-- Bottom-corner ends (no shaft steps — they crowded the jaw) -->
-                        <rect x="0" y="32" width="4" height="4"/><rect x="0" y="36" width="4" height="4"/><rect x="3" y="34" width="4" height="4"/>
-                        <rect x="28" y="32" width="4" height="4"/><rect x="28" y="36" width="4" height="4"/><rect x="25" y="34" width="4" height="4"/>
+                <!-- Skull with 4 peg teeth (dark gaps) + X bones: knobby ends +
+                     shafts that stay visible beside/below the jaw. Min 2×2. -->
+                <svg class="go-skull-svg" viewBox="0 0 32 40" width="100" height="124" focusable="false" shape-rendering="crispEdges">
+                    <!-- Dog-bone X at the four corners under the skull (no ear-height knobs) -->
+                    <g class="go-skull-bones">
+                        <g fill="#cbbb9c">
+                            <!-- UL end — chin height, far left -->
+                            <rect x="0" y="28" width="5" height="2"/>
+                            <rect x="0" y="30" width="6" height="3"/>
+                            <rect x="0" y="33" width="5" height="2"/>
+                            <!-- Shaft A → LR corner -->
+                            <rect x="5" y="32" width="3" height="2"/><rect x="8" y="33" width="3" height="2"/>
+                            <rect x="12" y="34" width="3" height="2"/><rect x="16" y="35" width="3" height="2"/>
+                            <rect x="20" y="36" width="3" height="2"/>
+                            <!-- LR end — bottom-right corner -->
+                            <rect x="23" y="35" width="5" height="2"/>
+                            <rect x="22" y="37" width="6" height="2"/>
+                            <rect x="23" y="39" width="5" height="1"/>
+                        </g>
+                        <g fill="#b8a888">
+                            <!-- UR end — chin height, far right -->
+                            <rect x="27" y="28" width="5" height="2"/>
+                            <rect x="26" y="30" width="6" height="3"/>
+                            <rect x="27" y="33" width="5" height="2"/>
+                            <!-- Shaft B → LL corner -->
+                            <rect x="24" y="32" width="3" height="2"/><rect x="21" y="33" width="3" height="2"/>
+                            <rect x="17" y="34" width="3" height="2"/><rect x="13" y="35" width="3" height="2"/>
+                            <rect x="9" y="36" width="3" height="2"/>
+                            <!-- LL end — bottom-left corner -->
+                            <rect x="4" y="35" width="5" height="2"/>
+                            <rect x="4" y="37" width="6" height="2"/>
+                            <rect x="4" y="39" width="5" height="1"/>
+                        </g>
                     </g>
 
-                    <!-- Cranium: wide dome tapering to the tooth row -->
+                    <!-- Cranium ends above the bone X -->
                     <g class="go-skull-head">
                         <g fill="#f2e9d6">
-                            <rect x="10" y="0" width="12" height="2"/>
-                            <rect x="8" y="2" width="16" height="2"/>
-                            <rect x="6" y="4" width="20" height="2"/>
-                            <rect x="4" y="6" width="24" height="8"/>
-                            <rect x="6" y="14" width="20" height="2"/>
-                            <rect x="6" y="16" width="20" height="2"/>
-                            <rect x="8" y="18" width="16" height="2"/>
+                            <rect x="9" y="0" width="13" height="2"/>
+                            <rect x="7" y="2" width="17" height="2"/>
+                            <rect x="5" y="4" width="21" height="2"/>
+                            <rect x="4" y="6" width="23" height="8"/>
+                            <rect x="5" y="14" width="21" height="2"/>
+                            <rect x="6" y="16" width="19" height="2"/>
+                            <rect x="8" y="18" width="15" height="2"/>
                         </g>
-                        <!-- Crown highlight -->
-                        <rect x="12" y="0" width="8" height="2" fill="#fffaf0"/>
-                        <!-- Octagonal sockets 7×7 -->
-                        <g fill="#0d0510">
-                            <rect x="6" y="7" width="7" height="7"/>
-                            <rect x="19" y="7" width="7" height="7"/>
-                        </g>
+                        <rect x="11" y="0" width="7" height="2" fill="#fffaf0"/>
+                        <rect x="20" y="0" width="2" height="2" fill="#0d0510"/>
+                        <rect x="6" y="7" width="7" height="7" fill="#0d0510"/>
+                        <rect x="18" y="8" width="6" height="6" fill="#0d0510"/>
                         <g fill="#f2e9d6">
                             <rect x="6" y="7" width="2" height="2"/><rect x="11" y="7" width="2" height="2"/>
                             <rect x="6" y="12" width="2" height="2"/><rect x="11" y="12" width="2" height="2"/>
-                            <rect x="19" y="7" width="2" height="2"/><rect x="24" y="7" width="2" height="2"/>
-                            <rect x="19" y="12" width="2" height="2"/><rect x="24" y="12" width="2" height="2"/>
+                            <rect x="18" y="8" width="2" height="2"/><rect x="22" y="8" width="2" height="2"/>
+                            <rect x="22" y="12" width="2" height="2"/>
                         </g>
-                        <!-- Glowing pupils, centered -->
-                        <g fill="#ff1744">
-                            <rect x="8" y="9" width="3" height="3"/>
-                            <rect x="21" y="9" width="3" height="3"/>
-                        </g>
-                        <!-- Nasal cavity: widens downward -->
-                        <g fill="#0d0510">
-                            <rect x="14" y="14" width="4" height="2"/>
-                            <rect x="13" y="16" width="6" height="2"/>
-                        </g>
-                        <!-- Cheek shading -->
-                        <g fill="#d8cbae">
-                            <rect x="6" y="16" width="4" height="2"/>
-                            <rect x="22" y="16" width="4" height="2"/>
-                        </g>
-                        <!-- Fixed upper teeth: 3 chunky teeth hanging from the cranium -->
-                        <rect x="8" y="20" width="16" height="4" fill="#f2e9d6"/>
-                        <g fill="#0d0510">
-                            <rect x="12" y="20" width="2" height="4"/>
-                            <rect x="18" y="20" width="2" height="4"/>
+                        <rect x="8" y="9" width="3" height="3" fill="#ff1744"/>
+                        <rect x="20" y="10" width="3" height="3" fill="#ff1744"/>
+                        <rect x="13" y="14" width="4" height="2" fill="#0d0510"/>
+                        <rect x="12" y="16" width="5" height="2" fill="#0d0510"/>
+                        <rect x="5" y="16" width="4" height="2" fill="#d8cbae"/>
+                        <rect x="22" y="15" width="3" height="2" fill="#d8cbae"/>
+                        <!-- Dark mouth cavity; ivory teeth hang INTO it (reads as teeth) -->
+                        <rect x="7" y="20" width="18" height="2" fill="#f2e9d6"/>
+                        <rect x="7" y="22" width="18" height="5" fill="#0d0510"/>
+                        <g fill="#fffaf0">
+                            <rect x="8" y="22" width="3" height="4"/>
+                            <rect x="13" y="22" width="3" height="4"/>
+                            <rect x="18" y="22" width="3" height="4"/>
+                            <rect x="22" y="22" width="3" height="3"/>
                         </g>
                     </g>
 
-                    <!-- Mandible CLOSED: teeth gaps aligned with the upper row -->
+                    <!-- Mandible CLOSED: lower teeth rise into the same dark cavity -->
                     <g class="go-skull-jaw go-skull-jaw-closed">
-                        <rect x="8" y="26" width="16" height="6" fill="#f2e9d6"/>
-                        <g fill="#0d0510">
-                            <rect x="12" y="26" width="2" height="3"/>
-                            <rect x="18" y="26" width="2" height="3"/>
+                        <rect x="7" y="27" width="18" height="1" fill="#0d0510"/>
+                        <g fill="#fffaf0">
+                            <rect x="8" y="26" width="3" height="3"/>
+                            <rect x="13" y="26" width="3" height="3"/>
+                            <rect x="18" y="26" width="3" height="3"/>
+                            <rect x="22" y="26" width="3" height="2"/>
                         </g>
-                        <rect x="8" y="30" width="16" height="2" fill="#d8cbae"/>
+                        <rect x="7" y="29" width="18" height="2" fill="#f2e9d6"/>
+                        <rect x="7" y="30" width="18" height="1" fill="#d8cbae"/>
                     </g>
 
-                    <!-- Mandible OPEN: same bar dropped -->
+                    <!-- Mandible OPEN: lower teeth + bar dropped -->
                     <g class="go-skull-jaw go-skull-jaw-open">
-                        <rect x="8" y="30" width="16" height="6" fill="#f2e9d6"/>
-                        <g fill="#0d0510">
-                            <rect x="12" y="30" width="2" height="3"/>
-                            <rect x="18" y="30" width="2" height="3"/>
+                        <g fill="#fffaf0">
+                            <rect x="8" y="31" width="3" height="3"/>
+                            <rect x="13" y="31" width="3" height="3"/>
+                            <rect x="18" y="31" width="3" height="3"/>
+                            <rect x="22" y="31" width="3" height="2"/>
                         </g>
-                        <rect x="8" y="34" width="16" height="2" fill="#d8cbae"/>
+                        <rect x="7" y="34" width="18" height="2" fill="#f2e9d6"/>
+                        <rect x="7" y="35" width="18" height="1" fill="#d8cbae"/>
                     </g>
 
-                    <!-- Tongues LAST — sized to the mouth gap so teeth stay visible -->
-                    <!-- Closed: small blep poking between the tooth rows -->
                     <g class="go-skull-tongue go-skull-tongue-in">
-                        <rect x="14" y="24" width="4" height="3" fill="#e040fb"/>
-                        <rect x="14" y="26" width="4" height="2" fill="#c026f0"/>
+                        <rect x="14" y="25" width="4" height="2" fill="#e040fb"/>
                     </g>
-                    <!-- Open: tongue fills the dark gap, stops at the dropped jaw -->
                     <g class="go-skull-tongue go-skull-tongue-out">
-                        <rect x="13" y="24" width="6" height="2" fill="#f48fff"/>
-                        <rect x="12" y="26" width="8" height="2" fill="#e040fb"/>
-                        <rect x="13" y="28" width="6" height="2" fill="#c026f0"/>
+                        <rect x="13" y="27" width="5" height="2" fill="#f48fff"/>
+                        <rect x="12" y="29" width="7" height="2" fill="#e040fb"/>
                     </g>
                 </svg>
             </div>
@@ -477,7 +488,7 @@
 
     <script src="score-format.js?v=45"></script>
     <script src="audio.js?v=59"></script>
-    <script src="blockchain.js?v=58"></script>
+    <script src="blockchain.js?v=65"></script>
     <script src="game.js?v=64"></script>
 </body>
 </html>

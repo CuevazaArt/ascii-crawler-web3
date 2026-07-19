@@ -2302,16 +2302,16 @@ kbd {
     z-index: 1;
     display: inline-grid;
     place-items: center;
-    width: 128px;
-    height: 160px;
+    width: 100px;
+    height: 124px;
     margin: 4px auto 10px;
 }
 
 .gameover-arcade .go-skull-svg {
     position: relative;
     z-index: 2;
-    width: 128px;
-    height: 160px;
+    width: 100px;
+    height: 124px;
     display: block;
     image-rendering: pixelated;
     image-rendering: crisp-edges;

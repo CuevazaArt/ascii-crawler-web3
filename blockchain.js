@@ -368,7 +368,8 @@ class Web3Simulator {
         });
         this.economy.history = this.economy.history.slice(0, XRPL.SCORE_HISTORY_MAX);
         this.saveEconomy();
-        this.refreshEconomyUI();
+        // Do not call refreshEconomyUI() here — ensureEpoch() is mid-rollover and
+        // refreshEconomyUI → ensureEpoch would recurse until the stack blows.
     }
 
     recordEpochScore(account, score, drops) {
