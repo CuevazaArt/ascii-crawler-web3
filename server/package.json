@@ -1,0 +1,19 @@
+{
+  "name": "leak-runner-operator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Leak Runner — XRPL operator API (stake verification, server-authoritative runs, real payouts, epoch prizes)",
+  "main": "src/index.mjs",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "dev": "node --env-file-if-exists=.env --watch src/index.mjs",
+    "e2e:testnet": "node --env-file-if-exists=.env scripts/e2e-testnet.mjs"
+  },
+  "dependencies": {
+    "xrpl": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=23.4"
+  }
+}

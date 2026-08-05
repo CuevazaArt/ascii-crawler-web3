@@ -1,8 +1,12 @@
 /**
- * XRPL Ledger Simulator for Leak Runner (blockchain.js)
- * Simulates Xaman wallet connect, XRP stake/consume/reward flows,
- * Payment Channels for drop micropayouts, and NFTokenBurn on slash.
- * Demo layer built for XRPL experiments — not a live mainnet client yet.
+ * XRPL ledger layer for Leak Runner (blockchain.js)
+ *
+ * Two modes, one interface:
+ *   - sim  (default): local simulator — virtual balance, fake hashes,
+ *     localStorage economy. Safe for demos and judges without a wallet.
+ *   - live: real rails — Xaman sign-in (PKCE), real stake Payment to the
+ *     operator, server-authoritative accrual, real settle Payment + on-ledger
+ *     ScoreCommit memo. Enabled via xrpl-config.js + xrpl-client.js.
  */
 
 const REPO_URL = 'https://github.com/CuevazaArt/ascii-crawler-web3';
@@ -68,6 +72,12 @@ class Web3Simulator {
         this._attractIdleMs = 36000;  // lobby idle before scores takeover (3× prior 12s)
         this._attractShowMs = 21000;  // scores screen duration (3× prior 7s)
 
+        // Live XRPL rails (real Xaman + operator API) — inert in sim mode
+        this.liveRun = null;          // { runId, token } while a live run is active
+        this._liveEvents = [];        // queued accrual events → /api/run/events
+        this._liveFlushTimer = null;
+        this._liveEconomyTimer = null;
+
         this.walletInfo = document.getElementById('wallet-info');
         this.walletAddressEl = document.querySelector('.wallet-address');
         this.indicatorEl = document.querySelector('.status-indicator');
@@ -95,6 +105,7 @@ class Web3Simulator {
         this.refreshEconomyUI();
         this.startBannerCycle();
         this.startAttractCycle();
+        this.initLiveMode();
     }
 
     // ——— Persistent XRPL scoreboard (demo: localStorage = on-ledger memo cache) ———
@@ -199,6 +210,7 @@ class Web3Simulator {
     }
 
     ensureEpoch() {
+        if (this.isLiveMode()) return; // epochs & prize bags are server-authoritative in live mode
         const now = Date.now();
         if (now < this.economy.epochEnds) return;
         this.resolveEpochPrizes();
@@ -248,6 +260,7 @@ class Web3Simulator {
     }
 
     maybeSoftCapJackpot() {
+        if (this.isLiveMode()) return;
         if (this.economy.bags.jackpot < XRPL.JACKPOT_SOFT_CAP) return;
         this.log(`Jackpot soft-cap ${XRPL.JACKPOT_SOFT_CAP} XRP hit — forcing epoch prize resolve.`, 'alert');
         this.resolveEpochPrizes();
@@ -263,6 +276,7 @@ class Web3Simulator {
         this.sessionPendingEarn = this.roundXrp(this.sessionPendingEarn + amount);
         const pendingEl = document.getElementById('val-pending-earn');
         if (pendingEl) pendingEl.textContent = this.sessionPendingEarn.toFixed(4);
+        if (this.isLiveMode() && this.liveRun) this.queueLiveEvent(amount, label);
         // Quiet channel: only occasional proof log (demo-friendly, not spam)
         this._pendingMoves = (this._pendingMoves || 0) + 1;
         if (this._pendingMoves >= 12 && this.hasSessionKeys) {
@@ -490,14 +504,21 @@ class Web3Simulator {
             return;
         }
         el.innerHTML = items.map(h => {
+            const who = this.escapeHtml(this.shortAccount(h.account || h.winner || '—'));
             if (h.type === 'milestone') {
-                return `<li class="hist-row"><span class="hist-tag">HIT</span> ${this.escapeHtml(h.label)} · ${this.escapeHtml(h.account)} · +${(h.prize || 0).toFixed(3)}</li>`;
+                return `<li class="hist-row"><span class="hist-tag">HIT</span> ${this.escapeHtml(h.label)} · ${who} · +${(h.prize || 0).toFixed(3)}</li>`;
             }
             if (h.type === 'epoch') {
-                return `<li class="hist-row"><span class="hist-tag">EPOCH</span> #${h.epochId} winner ${this.escapeHtml(h.winner || '—')} · ${h.topScore} pts</li>`;
+                return `<li class="hist-row"><span class="hist-tag">EPOCH</span> #${h.epochId} winner ${who} · ${h.topScore || 0} pts</li>`;
+            }
+            if (h.type === 'stake') {
+                return `<li class="hist-row"><span class="hist-tag">STAKE</span> ${who} · ${(h.stake || 0).toFixed(2)} XRP staked</li>`;
+            }
+            if (h.type === 'alert') {
+                return `<li class="hist-row"><span class="hist-tag">OPS</span> ${this.escapeHtml(h.label || 'operator notice')}</li>`;
             }
             const d = new Date(h.ts).toLocaleDateString();
-            return `<li class="hist-row"><span class="hist-tag">RUN</span> ${d} · ${this.escapeHtml(h.account)} · ${this.formatScoreDisplay(h.score)} pts</li>`;
+            return `<li class="hist-row"><span class="hist-tag">RUN</span> ${d} · ${who} · ${this.formatScoreDisplay(h.score || 0)} pts</li>`;
         }).join('');
     }
 
@@ -996,6 +1017,25 @@ class Web3Simulator {
         this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
     }
 
+    /** Like log(), but appends a safe external explorer link. */
+    logTx(message, url) {
+        const entry = document.createElement('div');
+        entry.className = 'log-entry tx';
+        const timestamp = new Date().toLocaleTimeString();
+        entry.innerHTML = `<span style="color: #666">[${timestamp}]</span> <i class='fa-solid fa-water'></i> [XRPL] ${this.escapeHtml(message)}`;
+        if (url) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.target = '_blank';
+            a.rel = 'noopener noreferrer';
+            a.className = 'tx-link';
+            a.textContent = 'explorer ↗';
+            entry.appendChild(a);
+        }
+        this.logsContainer.appendChild(entry);
+        this.logsContainer.scrollTop = this.logsContainer.scrollHeight;
+    }
+
     getNewTxHash() {
         this.ledgerIndex++;
         const characters = 'ABCDEF0123456789';
@@ -1024,6 +1064,10 @@ class Web3Simulator {
 
     performXamanConnect() {
         if (this.isConnected) return;
+        if (this.isLiveMode()) {
+            this.performLiveConnect();
+            return;
+        }
 
         this.log("Opening Xaman sign-in payload (wallet connect)...");
         if (this.btnConnect) this.btnConnect.disabled = true;
@@ -1071,9 +1115,366 @@ class Web3Simulator {
         }, 1000);
     }
 
+    // ═════════════ LIVE XRPL RAILS — real Xaman sign-in + operator API ═════════════
+
+    /** True when live rails are configured AND the PKCE lib loaded. */
+    isLiveMode() {
+        return !!(window.xrplLive && window.xrplLive.available());
+    }
+
+    initLiveMode() {
+        if (window.XRPL_LIVE_CONFIG?.mode === 'live' && !this.isLiveMode()) {
+            this.log('Live config detected but incomplete (API key / operator address / apiBase / Xaman CDN). Running the local simulator instead.', 'alert');
+            return;
+        }
+        if (!this.isLiveMode()) return;
+
+        const live = window.xrplLive;
+        const label = live.networkLabel();
+        const badge = document.querySelector('.web3-badge');
+        if (badge) {
+            badge.classList.add(live.isMainnet() ? 'live-mainnet' : 'live-testnet');
+            badge.title = `Live XRPL rails — ${label}`;
+            badge.innerHTML = `<span class="web3-badge-dot" aria-hidden="true"></span> XRPL ${this.escapeHtml(label)} · LIVE`;
+        }
+        this.log(
+            `LIVE rails armed — XRPL ${label}. Stakes and payouts move ${live.isMainnet() ? 'REAL' : 'test'} XRP.`,
+            live.isMainnet() ? 'alert' : 'system'
+        );
+
+        this.syncLiveEconomy();
+        this._liveEconomyTimer = setInterval(() => {
+            if (!this.gameActive) this.syncLiveEconomy({ quiet: true });
+        }, 60000);
+
+        // Silent session restore from a remembered Xaman JWT (no popup)
+        live.restore().then((account) => {
+            if (account && !this.isConnected) {
+                this.log('Xaman session restored from previous visit.', 'event');
+                this.completeLiveConnect(account);
+            }
+        }).catch(() => { /* stay disconnected */ });
+    }
+
+    async performLiveConnect() {
+        if (this.isConnected) return;
+        this.log('Opening Xaman sign-in (OAuth2 PKCE)…', 'system');
+        if (this.btnConnect) this.btnConnect.disabled = true;
+        try {
+            const { account } = await window.xrplLive.connect();
+            await this.completeLiveConnect(account);
+        } catch (e) {
+            this.log(`Xaman sign-in failed or cancelled: ${e?.message || e}`, 'alert');
+            if (this.btnConnect) this.btnConnect.disabled = false;
+        }
+    }
+
+    shortAccount(account) {
+        const a = String(account || '');
+        return a.length > 14 ? `${a.slice(0, 8)}…${a.slice(-4)}` : a;
+    }
+
+    async completeLiveConnect(account) {
+        if (this.isConnected) return;
+        this.isConnected = true;
+        this.walletAddress = account;
+        this.activeHeroId = '#' + account.slice(-3).toUpperCase();
+
+        if (this.indicatorEl) this.indicatorEl.className = 'status-indicator connected';
+        if (this.walletAddressEl) this.walletAddressEl.textContent = this.shortAccount(account);
+        if (this.btnConnect) {
+            this.btnConnect.innerHTML = "<i class='fa-solid fa-check'></i> Xaman Linked";
+            this.btnConnect.classList.replace('btn-primary', 'btn-danger');
+            this.btnConnect.style.opacity = '0.75';
+            this.btnConnect.disabled = true;
+        }
+        if (this.valHeroNft) this.valHeroNft.textContent = this.activeHeroId;
+        if (this.valHeroClass) this.valHeroClass.textContent = this.activeHeroSkin;
+        if (this.btnStartRun) this.btnStartRun.disabled = false;
+        if (this.btnSessionKeys) this.btnSessionKeys.disabled = false;
+
+        this.log(`Xaman linked: ${account}`, 'system');
+        const best = this.getWalletRecord().highScore;
+        if (best > 0) this.log(`Welcome back · personal best ${this.formatScoreDisplay(best)} pts.`, 'event');
+        this.refreshScoreUI();
+        await this.refreshLiveBalance({ announce: true });
+    }
+
+    async refreshLiveBalance({ announce = false } = {}) {
+        if (!this.isLiveMode() || !this.walletAddress) return;
+        try {
+            const info = await window.xrplLive.getAccountInfo(this.walletAddress);
+            if (!info) {
+                this.xrpBalance = 0;
+                this.log('Account not activated on this network yet (needs the 1 XRP base reserve).', 'alert');
+            } else {
+                this.xrpBalance = info.balanceXrp;
+                if (announce) {
+                    this.log(`Ledger balance: ${this.xrpBalance.toFixed(6)} XRP · ${window.xrplLive.networkLabel()}`, 'system');
+                }
+            }
+            if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
+        } catch (e) {
+            this.log(`Balance lookup failed: ${e?.message || e}`, 'alert');
+        }
+    }
+
+    /** Map a server economy snapshot into the local render model. */
+    applyLiveEconomy(data) {
+        if (!data) return;
+        if (data.bags) {
+            this.economy.bags = {
+                jackpot: Number(data.bags.jackpot) || 0,
+                topN: Number(data.bags.topN) || 0,
+                milestones: Number(data.bags.milestones) || 0,
+                reserve: Number(data.bags.reserve) || 0,
+                dev: Number(data.bags.dev) || 0
+            };
+        }
+        if (data.epoch) {
+            this.economy.epochId = data.epoch.id || this.economy.epochId;
+            this.economy.epochStarted = data.epoch.startedMs || this.economy.epochStarted;
+            this.economy.epochEnds = data.epoch.endsMs || this.economy.epochEnds;
+            if (Array.isArray(data.epoch.board)) this.economy.epochBoard = data.epoch.board;
+        }
+        if (Array.isArray(data.history)) this.economy.history = data.history;
+        if (Array.isArray(data.board)) {
+            this.scoreboard.board = data.board.map((r) => ({
+                account: r.account,
+                score: r.score,
+                drops: r.drops || 0,
+                relics: r.relics || 0,
+                ledger: r.ledger || 0,
+                ts: r.ts || Date.now()
+            }));
+            const mine = this.walletAddress
+                ? data.board.find((r) => r.account === this.walletAddress)
+                : null;
+            if (mine) {
+                const rec = this.getWalletRecord(this.walletAddress);
+                if ((mine.score || 0) > (rec.highScore || 0)) rec.highScore = mine.score;
+            }
+            this.saveScoreboard();
+        }
+        this.refreshEconomyUI();
+        this.renderLeaderboard();
+        this.refreshBannerSlides();
+    }
+
+    async syncLiveEconomy({ quiet = false } = {}) {
+        if (!this.isLiveMode()) return;
+        try {
+            const data = await window.xrplLive.api('/api/leaderboard');
+            this.applyLiveEconomy(data);
+            if (!quiet) this.log(`Operator API synced · epoch #${this.economy.epochId} · prize bags live.`, 'system');
+        } catch (e) {
+            if (!quiet) this.log(`Operator API offline (${e?.message || e}) — prize data may be stale. Demo Mode still works.`, 'alert');
+        }
+    }
+
+    /** Live stake: intent → Xaman sign → on-ledger verify → boot run. */
+    async liveInsertCoin() {
+        if (!this.isConnected || this.gameActive) return;
+        const live = window.xrplLive;
+        // A Payment can never dip the sender below the 1 XRP base reserve
+        const needed = XRPL.ENTRY_STAKE + 1.01;
+        if (this.xrpBalance < needed) {
+            this.log(`Need ≥ ${needed.toFixed(2)} XRP (stake ${XRPL.ENTRY_STAKE} + 1 XRP base reserve). Balance: ${this.xrpBalance.toFixed(4)}.`, 'alert');
+            return;
+        }
+        if (window.retroAudio) window.retroAudio.playClick();
+        this.btnStartRun.disabled = true;
+
+        try {
+            this.log(`Stake ${XRPL.ENTRY_STAKE} XRP → operator vault · opening Xaman sign request…`, 'system');
+            const intent = await live.api('/api/run/intent', { account: this.walletAddress });
+            const { txid } = await live.signStakePayload({
+                amountXrp: XRPL.ENTRY_STAKE,
+                intentId: intent.intentId
+            });
+            this.logTx(`Stake signed · ${txid.slice(0, 14)}…`, live.explorerTx(txid));
+
+            this.log('Verifying stake on-ledger (validated Payment to operator)…', 'system');
+            const start = await live.api('/api/run/start', {
+                account: this.walletAddress,
+                intentId: intent.intentId,
+                txHash: txid
+            });
+
+            this.liveRun = { runId: start.runId, token: start.token };
+            this._liveEvents = [];
+            this.sessionXrpEarned = 0;
+            this.sessionPendingEarn = 0;
+            this.sessionEarnEscrow = Number(start.escrow) || this.roundXrp(XRPL.ENTRY_STAKE * XRPL.STAKE_SPLIT.earn);
+            this.applyLiveEconomy(start.economy);
+            this.log(`Run verified · escrow ${this.sessionEarnEscrow} XRP reclaimable by skill · settle on Claim/Exit.`, 'event');
+            this.refreshLiveBalance();
+
+            this.gameActive = true;
+            this.pauseAttractCycle();
+            if (this.btnClaimExit) this.btnClaimExit.disabled = false;
+            if (window.gameEngine) window.gameEngine.startGame(this.activeHeroSkin);
+        } catch (e) {
+            this.log(`Stake aborted: ${e?.message || e}`, 'alert');
+            this.btnStartRun.disabled = false;
+        }
+    }
+
+    queueLiveEvent(amount, label) {
+        if (!this.liveRun) return;
+        const l = String(label || '');
+        let ev;
+        if (l.startsWith('drop@')) ev = { t: 'drop' };
+        else if (l.startsWith('slash:')) ev = { t: 'slash', name: l.slice(6) };
+        else if (l.startsWith('relic:')) ev = { t: 'relic', name: l.slice(6) };
+        else ev = { t: 'other', label: l };
+        ev.ts = Date.now();
+        this._liveEvents.push(ev);
+
+        if (this._liveEvents.length >= 25) {
+            this.flushLiveEvents();
+        } else if (!this._liveFlushTimer) {
+            this._liveFlushTimer = setTimeout(() => this.flushLiveEvents(), 2000);
+        }
+    }
+
+    async flushLiveEvents(final = false) {
+        if (this._liveFlushTimer) {
+            clearTimeout(this._liveFlushTimer);
+            this._liveFlushTimer = null;
+        }
+        if (!this.liveRun || (!this._liveEvents.length && !final)) return;
+        const batch = this._liveEvents.splice(0, this._liveEvents.length);
+        const g = window.gameEngine;
+        try {
+            await window.xrplLive.api('/api/run/events', {
+                runId: this.liveRun.runId,
+                token: this.liveRun.token,
+                events: batch,
+                snapshot: { score: g?.score ?? 0, level: g?.level ?? 1, drops: g?.dotsEaten ?? 0 }
+            });
+        } catch (e) {
+            // Keep events for the next flush; settle carries the final snapshot anyway
+            this._liveEvents = batch.concat(this._liveEvents);
+            if (final) throw e;
+        }
+    }
+
+    async liveSettleRequest(reason, stats) {
+        try {
+            await this.flushLiveEvents(true);
+        } catch (_) { /* settle still carries the final stats */ }
+        return window.xrplLive.api('/api/run/settle', {
+            runId: this.liveRun.runId,
+            token: this.liveRun.token,
+            reason,
+            stats
+        });
+    }
+
+    handleLiveSettleResult(res, stats) {
+        this.liveRun = null;
+        this._liveEvents = [];
+        this.sessionPendingEarn = 0;
+        this.sessionEarnEscrow = 0;
+        this.sessionXrpEarned = this.roundXrp(Number(res.payout) || 0);
+
+        (res.milestones || []).forEach((m) => {
+            this.log(`Milestone [${m.label}] · first claim · +${(m.prize || 0).toFixed(4)} XRP`, 'event');
+        });
+        if (res.deferred) {
+            this.log(`Payout ${Number(res.payout).toFixed(4)} XRP queued — operator daily cap reached; it will be paid after review.`, 'alert');
+        } else if (res.payout > 0 && res.txHash) {
+            this.logTx(`Settle Payment · +${Number(res.payout).toFixed(4)} XRP · ${String(res.txHash).slice(0, 12)}…`, window.xrplLive.explorerTx(res.txHash));
+        } else if (res.txHash) {
+            this.logTx(`ScoreCommit memo inked on-ledger · ${String(res.txHash).slice(0, 12)}…`, window.xrplLive.explorerTx(res.txHash));
+        } else {
+            this.log('Run settled · no channel earn to claim this run.', 'system');
+        }
+
+        // Mirror the server outcome into the local wallet record
+        const rec = this.getWalletRecord(this.walletAddress);
+        rec.totalRuns += 1;
+        rec.totalDrops += stats.drops;
+        rec.lastScore = stats.score;
+        if ((res.best || 0) > (rec.highScore || 0)) rec.highScore = res.best;
+        rec.totalXrpEarned = this.roundXrp((rec.totalXrpEarned || 0) + this.sessionXrpEarned);
+        this.saveScoreboard();
+        this.personalBest = rec.highScore || 0;
+
+        this.applyLiveEconomy(res.economy);
+        this.refreshScoreUI();
+        this.refreshLiveBalance();
+        const pendingEl = document.getElementById('val-pending-earn');
+        if (pendingEl) pendingEl.textContent = '0.0000';
+    }
+
+    async liveCashOut() {
+        if (!this.gameActive || !this.liveRun) return;
+        if (window.retroAudio) window.retroAudio.playClick();
+        this.log('Claiming settle Payment from the operator vault…', 'system');
+        this.btnClaimExit.disabled = true;
+        const stats = this.captureRunStats();
+        try {
+            const res = await this.liveSettleRequest('cashout', stats);
+            this.handleLiveSettleResult(res, stats);
+            this.log(`Run finalized · ${res.isRecord ? 'NEW LEDGER RECORD · ' : ''}score ${this.formatScoreDisplay(stats.score)} committed on-ledger.`, 'event');
+            this.resetGameState();
+        } catch (e) {
+            this.log(`Settle failed: ${e?.message || e} — your run is safe, press Claim again.`, 'alert');
+            this.btnClaimExit.disabled = false;
+        }
+    }
+
+    async livePermadeath(stats) {
+        this.gameActive = false; // freeze accrual before the async settle
+        this.log('UPTIME 0 — Node slashed. Settling harvested XRP + ScoreCommit…', 'alert');
+        let res = null;
+        try {
+            res = await this.liveSettleRequest('slash', stats);
+            this.handleLiveSettleResult(res, stats);
+        } catch (e) {
+            this.liveRun = null; // stale runs are auto-settled server-side
+            this.log(`Settle failed: ${e?.message || e} — the operator will auto-settle this run.`, 'alert');
+        }
+
+        const rec = this.getWalletRecord(this.walletAddress);
+        this.showGameOverModal({
+            heroLabel: `Node ${this.activeHeroId}`,
+            score: stats.score,
+            drops: stats.drops,
+            best: res?.best ?? rec.highScore ?? stats.score,
+            isRecord: !!res?.isRecord,
+            demo: false
+        });
+        this.resetGameState();
+
+        // Burned-node arcade flavor — wallet stays linked in live mode
+        this.btnStartRun.disabled = true;
+        this.btnStartRun.innerHTML = "<i class='fa-solid fa-skull'></i> Node Slashed";
+        this.btnStartRun.className = 'btn btn-danger';
+        const closeBtn = document.getElementById('btn-close-gameover');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                const modal = document.getElementById('gameover-modal');
+                if (modal) modal.style.display = 'none';
+                this.hideAttractScreen(true);
+                this.btnStartRun.disabled = false;
+                this.btnStartRun.innerHTML = `<i class="fa-solid fa-bolt"></i> Stake ${XRPL.ENTRY_STAKE} XRP · Boot Node`;
+                this.btnStartRun.className = 'btn btn-success';
+            };
+        }
+    }
+
+    // ════════════════════════ end LIVE XRPL RAILS ════════════════════════
+
     toggleSessionKeys() {
         if (!this.isConnected) return;
         if (window.retroAudio) window.retroAudio.playClick();
+        if (this.isLiveMode()) {
+            this.log('Payment Channels land post-launch. In live beta, drops batch to the operator API and settle in a single Payment at Claim/Exit.', 'system');
+            return;
+        }
         
         if (this.hasSessionKeys) {
             this.hasSessionKeys = false;
@@ -1128,6 +1529,11 @@ class Web3Simulator {
 
         if (this.isBypassMode) {
             bootRun(false);
+            return;
+        }
+
+        if (this.isLiveMode()) {
+            this.liveInsertCoin();
             return;
         }
 
@@ -1191,7 +1597,8 @@ class Web3Simulator {
         if (this.isBypassMode) return;
 
         this.log(`Uptime breached. Restarts left: ${remainingLives}. Memo inked on the ledger…`, 'alert');
-        
+        if (this.isLiveMode()) return; // live: score commits on-ledger only at settle
+
         setTimeout(() => {
             const { hash, block } = this.getNewTxHash();
             this.log(`AccountSet memo (uptime) · ledger ${block} · ${hash.slice(0, 12)}...`, 'tx');
@@ -1200,6 +1607,10 @@ class Web3Simulator {
 
     cashOutTransaction() {
         if (!this.gameActive) return;
+        if (this.isLiveMode() && this.liveRun) {
+            this.liveCashOut();
+            return;
+        }
         if (window.retroAudio) window.retroAudio.playClick();
         
         this.log("Claiming escrow remainder + harvested XRP via Xaman...", 'system');
@@ -1234,6 +1645,10 @@ class Web3Simulator {
         if (window.retroAudio) window.retroAudio.playGameOver();
         
         const stats = this.captureRunStats();
+        if (this.isLiveMode() && this.liveRun) {
+            this.livePermadeath(stats);
+            return;
+        }
         // Death: settle what you earned; unused escrow → house (edge)
         this.settleRunPayout(stats);
         const commit = this.commitScoreToLedger({ ...stats, reason: 'slash' });
@@ -1403,6 +1818,10 @@ class Web3Simulator {
         } else {
             if (!this.isConnected && !this.isBypassMode) {
                 this.log("Connect Xaman first to buy skins with XRP.", "alert");
+                return;
+            }
+            if (this.isLiveMode()) {
+                this.log('Skin sales open post-launch — cosmetics are not charged in live beta.', 'alert');
                 return;
             }
             

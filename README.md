@@ -14,22 +14,24 @@ Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/).
 
 ## What is real vs. simulated
 
-Honest status of the XRPL layer (important for judges and contributors):
+Honest status of the XRPL layer (important for judges and contributors). The game ships in **sim mode** by default; an operator flips it live via `xrpl-config.js` + the [`server/` operator API](server/README.md).
 
-| Layer | Status |
-| --- | --- |
-| Game engine, pixel art, audio, attract mode | **Real** — runs fully client-side |
-| Xaman connect, stake, Payment Channels, NFTokenBurn, ScoreCommit | **Simulated** — local mock, no network calls |
-| Balances, prize bags, epochs, leaderboards | **Simulated** — persisted in `localStorage` only |
+| Layer | Sim mode (default) | Live mode (`xrpl-config.js` filled in) |
+| --- | --- | --- |
+| Game engine, pixel art, audio, attract mode | **Real** — runs fully client-side | Same |
+| Xaman connect | Local mock | **Real** — Xaman OAuth2 PKCE sign-in |
+| Entry stake (0.5 XRP) | Simulated | **Real Payment** signed in Xaman, verified on-ledger by the operator API before the run starts |
+| Run earn, payouts, ScoreCommit | Simulated | **Real** — server-authoritative accrual with caps; the operator hot wallet signs the settle Payment (ceiling 1.1× stake) with an on-ledger `leakrunner/scorecommit` memo |
+| Prize bags, epochs, leaderboards | `localStorage` | **Server-side** (SQLite), epoch prizes queued for manual approval |
+| Payment Channels, NFT mint/burn, skin charges | Simulated narrative | Still simulated (post-launch roadmap) |
 
-No real XRP moves in this repository today. The XRPL concepts are modeled 1:1 with their real counterparts (Payment Channels for micropayouts, NFTs via XLS-20, memos for score commits) so the swap to live rails is mechanical, not conceptual.
+### Going live
 
-### Roadmap to live XRPL
+1. Deploy `server/` (see [server/README.md](server/README.md)) with a funded operator wallet.
+2. Fill `xrpl-config.js`: `mode: 'live'`, `network`, `xamanApiKey`, `operatorAddress`, `apiBase`.
+3. Verify on testnet first: `cd server && npm run e2e:testnet` exercises real faucet wallets, a real stake, capped accrual, a real payout and the ScoreCommit memo.
 
-1. Wallet: real Xaman (Xumm) SDK sign-in flow replacing the mock connect.
-2. Testnet: `xrpl.js` client — real stake payment, channel open/claim/close, `NFTokenMint`/`NFTokenBurn`.
-3. Score commits: transaction memos on-ledger, leaderboard read from ledger history.
-4. Mainnet hardening: amounts review, fee handling, error/retry UX.
+If the live config is incomplete or the SDK fails to load, the game degrades gracefully back to sim mode.
 
 ## Controls
 
@@ -58,7 +60,7 @@ npm ci
 npm test
 ```
 
-CI runs on GitHub Actions (`.github/workflows/ci.yml`): legal docs presence, score ASCII limit, and button contract / behavior checks.
+CI runs on GitHub Actions (`.github/workflows/ci.yml`) on Node 24: legal docs presence, score ASCII limit, button contract / behavior checks, live-rails wiring, maze integrity, and the operator API + economy suites (in-memory SQLite, mocked ledger). The real-ledger path is covered by the manual `npm run e2e:testnet` in `server/`.
 
 ## Score display
 

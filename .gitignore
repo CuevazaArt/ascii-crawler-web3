@@ -2,3 +2,11 @@ node_modules/
 .DS_Store
 *.log
 .cache/
+
+# Operator API secrets & local state — never commit
+server/.env
+server/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm

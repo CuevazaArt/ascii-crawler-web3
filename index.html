@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=67">
+    <link rel="stylesheet" href="style.css?v=68">
 </head>
 <body>
     <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -486,9 +486,28 @@
         </div>
     </div>
 
+    <!-- Xaman sign-request modal (QR / deep link) — used only in live mode -->
+    <div class="modal-overlay" id="xaman-sign-modal" role="dialog" aria-modal="true" aria-labelledby="xaman-sign-title">
+        <div class="modal-content xaman-sign-content">
+            <h2 id="xaman-sign-title" class="tos-title"><i class="fa-solid fa-qrcode text-secondary"></i> Sign in Xaman</h2>
+            <p class="xaman-sign-lead">Scan with the Xaman app, or open it directly on this device.</p>
+            <img id="xaman-sign-qr" class="xaman-sign-qr" alt="Xaman sign request QR" src="" />
+            <a id="xaman-sign-open" class="btn btn-primary xaman-sign-open" href="#" target="_blank" rel="noopener noreferrer">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Open in Xaman
+            </a>
+            <p id="xaman-sign-hint" class="xaman-sign-hint"></p>
+            <div class="tos-actions">
+                <button type="button" class="btn btn-danger" id="xaman-sign-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="xrpl-config.js?v=1"></script>
+    <script src="https://xumm.app/assets/cdn/xumm-oauth2-pkce.min.js"></script>
+    <script src="xrpl-client.js?v=1"></script>
     <script src="score-format.js?v=45"></script>
     <script src="audio.js?v=59"></script>
-    <script src="blockchain.js?v=65"></script>
+    <script src="blockchain.js?v=66"></script>
     <script src="game.js?v=64"></script>
 </body>
 </html>

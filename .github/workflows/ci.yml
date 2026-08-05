@@ -8,7 +8,7 @@ on:
 
 jobs:
   verify:
-    name: Legal · Score · Buttons
+    name: Legal · Score · Buttons · Live rails
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,7 +17,8 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # 24+: tests cover the operator API via built-in node:sqlite
+          node-version: "24"
           cache: npm
 
       - name: Install

@@ -106,7 +106,7 @@ export function loadApp() {
     window.cancelAnimationFrame = (id) => clearTimeout(id);
     window.navigator.getGamepads = () => [];
 
-    for (const file of ['score-format.js', 'audio.js', 'blockchain.js', 'game.js']) {
+    for (const file of ['xrpl-config.js', 'xrpl-client.js', 'score-format.js', 'audio.js', 'blockchain.js', 'game.js']) {
         const code = readFileSync(join(ROOT, file), 'utf8');
         const script = window.document.createElement('script');
         script.textContent = code;

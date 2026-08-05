@@ -1,6 +1,6 @@
 # Leak Runner — Legal: Disclaimer, License & Terms of Service
 
-**Last updated:** 2026-07-16  
+**Last updated:** 2026-08-05  
 **Product:** Leak Runner (Securithon Protocol) — arcade experience built for XRPL consumer-app experiments  
 **Repository:** [https://github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)  
 **Related files:** [LICENSE](../LICENSE) · [legal.html](./legal.html) (in-game readable copy)
@@ -74,6 +74,8 @@ When a deployment uses **XRPL mainnet** (or another live network):
 - Ledger transactions are generally **final and irreversible**. There is **no guaranteed refund** for stakes consumed, NFTs burned, fees paid, or XRP lost to gameplay, bugs, latency, or user error, unless the deployment operator expressly offers one.
 - **Demo Mode** (when enabled) is for local / simulated play and does **not** authorize live mainnet charges; switching out of Demo Mode may enable real payments.
 - **No guaranteed payout.** Scores, prize bags, epoch boards, and “earn” displays may be promotional, capped, delayed, clawed back for abuse, or unpaid. Past results do not predict future returns.
+- **Live operator rails.** In official live deployments, entry stakes are received by an **operator hot wallet** and payouts are signed server-side. Per-run payouts are **capped at 1.1× the entry stake**; run accrual and scores are validated **server-side**, and implausible values are clamped or rejected. Epoch prizes may be held for **manual review** before payment, and daily payout ceilings and anti-abuse limits apply.
+- **Age.** You must be of **legal age for digital-asset transactions in your jurisdiction — and in any case at least 18 —** to play with real XRP.
 - You are responsible for complying with **laws in your jurisdiction** (including age, consumer, and digital-asset rules). Do not use the Software where such payments or play are illegal for you.
 
 ### 3.5 Scores & prize bags
