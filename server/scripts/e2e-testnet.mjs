@@ -88,7 +88,7 @@ async function main() {
     );
     console.log('  replay rejected ✔');
 
-    step('POST /api/run/events — 120 drops, 2 slashes, 1 relic (capped, server-side)…');
+    step('POST /api/run/events — 120 drops, 2 slashes, 1 relic in client-sized batches…');
     // startedMs is "now" — backdate it so the drops/sec cap allows the batch
     db.prepare('UPDATE runs SET started_ms = ? WHERE id = ?')
         .run(Date.now() - 60_000, start.runId);
@@ -97,12 +97,16 @@ async function main() {
     events.push({ t: 'slash', name: 'Bitwaddle' }, { t: 'slash', name: 'Hatglide' });
     events.push({ t: 'relic', name: 'Mist Shard' });
     events.push({ t: 'relic', name: 'Fake Relic (must be ignored)' });
-    const ev = app.postEvents({
-        runId: start.runId,
-        token: start.token,
-        events,
-        snapshot: { score: 1900, level: 2, drops: 120 }
-    });
+    let ev;
+    while (events.length) {
+        ev = app.postEvents({
+            runId: start.runId,
+            token: start.token,
+            events: events.splice(0, 25),               // client flushes ≤25 per ~2 s
+            snapshot: { score: 1900, level: 2, drops: 120 }
+        });
+        if (events.length) await new Promise((r) => setTimeout(r, 350)); // per-run batch spacing
+    }
     assert.equal(ev.drops, 120);
     assert.equal(ev.slashes, 2);
     // 120*0.0005 + 2*0.01 + 0.002 = 0.082
@@ -117,7 +121,9 @@ async function main() {
         reason: 'cashout',
         stats: { score: 1900 }
     });
-    assert.equal(settle.payout, 0.082);
+    const milestoneTotal = settle.milestones.reduce((a, m) => a + m.prize, 0);
+    assert.ok(Math.abs(settle.payout - (0.082 + milestoneTotal)) < 1e-9,
+        `payout ${settle.payout} ≠ earn 0.082 + milestones ${milestoneTotal}`);
     assert.ok(settle.txHash, 'payout tx hash missing');
     assert.equal(settle.score, 1900);
     assert.ok(settle.milestones.some((m) => m.id === 'score_1k'), 'score_1k milestone expected');
@@ -130,9 +136,7 @@ async function main() {
     const txj = payoutTx.result.tx_json || payoutTx.result;
     assert.equal(meta.TransactionResult, 'tesSUCCESS');
     assert.equal(txj.Destination, player.address);
-    const milestoneTotal = settle.milestones.reduce((a, m) => a + m.prize, 0);
     assert.equal(Number(meta.delivered_amount) / 1e6, settle.payout);
-    assert.ok(Math.abs(settle.payout - (0.082 + milestoneTotal)) < 1e-9);
     const playerAfter = Number(await bootstrap.getXrpBalance(player.address));
     assert.ok(Math.abs(playerAfter - (playerBefore + settle.payout)) < 1e-6);
     console.log(`  delivered ${settle.payout} XRP to player ✔ · balance ${playerBefore} → ${playerAfter}`);

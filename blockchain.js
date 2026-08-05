@@ -1344,19 +1344,28 @@ class Web3Simulator {
             this._liveFlushTimer = null;
         }
         if (!this.liveRun || (!this._liveEvents.length && !final)) return;
-        const batch = this._liveEvents.splice(0, this._liveEvents.length);
         const g = window.gameEngine;
-        try {
-            await window.xrplLive.api('/api/run/events', {
-                runId: this.liveRun.runId,
-                token: this.liveRun.token,
-                events: batch,
-                snapshot: { score: g?.score ?? 0, level: g?.level ?? 1, drops: g?.dotsEaten ?? 0 }
-            });
-        } catch (e) {
-            // Keep events for the next flush; settle carries the final snapshot anyway
-            this._liveEvents = batch.concat(this._liveEvents);
-            if (final) throw e;
+        // Server contract: ≤100 events per batch, ≥300 ms between batches per run
+        do {
+            const batch = this._liveEvents.splice(0, 100);
+            try {
+                await window.xrplLive.api('/api/run/events', {
+                    runId: this.liveRun.runId,
+                    token: this.liveRun.token,
+                    events: batch,
+                    snapshot: { score: g?.score ?? 0, level: g?.level ?? 1, drops: g?.dotsEaten ?? 0 }
+                });
+            } catch (e) {
+                // Keep events for the next flush; settle carries the final snapshot anyway
+                this._liveEvents = batch.concat(this._liveEvents);
+                if (final) throw e;
+                return;
+            }
+            if (this._liveEvents.length) await new Promise((r) => setTimeout(r, 350));
+        } while (final && this.liveRun && this._liveEvents.length);
+
+        if (this._liveEvents.length && !this._liveFlushTimer) {
+            this._liveFlushTimer = setTimeout(() => this.flushLiveEvents(), 500);
         }
     }
 
