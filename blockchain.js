@@ -1579,15 +1579,15 @@ class Web3Simulator {
         this.accrueChannelReward(XRPL.DROP_REWARD, `drop@${x},${y}`);
     }
 
-    eatGhostTransaction(ghostId) {
+    slashExploitTransaction(exploitId) {
         if (!this.gameActive) return;
         // Scream + onomatopoeia FX are played by GameEngine.slashPenguinFx
         const roster = (typeof GRID_PENGUINS !== 'undefined' && GRID_PENGUINS) || null;
         const names = roster
             ? roster.map(d => d.name)
             : ['Bitwaddle', 'Hatglide', 'Slipkernel', 'Sourceflip'];
-        const name = names[ghostId] || `Penguin#${ghostId}`;
-        const ono = roster?.[ghostId]?.ono ? ` ${roster[ghostId].ono}` : '';
+        const name = names[exploitId] || `Penguin#${exploitId}`;
+        const ono = roster?.[exploitId]?.ono ? ` ${roster[exploitId].ono}` : '';
         this.accrueChannelReward(XRPL.EXPLOIT_SLASH, `slash:${name}`);
         this.log(`Audit slash — ${name}${ono} · +${XRPL.EXPLOIT_SLASH} XRP accrued (settle on Claim).`, 'event');
     }

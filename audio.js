@@ -178,14 +178,14 @@ class LeakRunnerAudioEngine {
         this.isMusicPlaying = false;
     }
 
-    playWaka() {
+    playHarvest() {
         this.resume();
         const freq = this.pickupToggle ? 520 : 380;
         this.pickupToggle = !this.pickupToggle;
         this.playTone(freq, 'triangle', 0.06, 0.12, freq * 0.7);
     }
 
-    playEatGhost() {
+    playSlash() {
         this.playPenguinScream(1, 0);
     }
 

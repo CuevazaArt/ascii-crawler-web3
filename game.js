@@ -155,7 +155,7 @@ class GameEngine {
         this.rows = 17;
         this.cols = 29;
         this.map = [];
-        this.ghosts = [];
+        this.exploits = [];
 
         this.dirX = -1;
         this.dirY = 0;
@@ -193,7 +193,7 @@ class GameEngine {
                 playerHi: '#ffffa8',
                 playerLo: '#e6c800',
                 // Four clearly-spaced hues: crimson / pink / cyan / orange
-                ghosts: ['#ff2a3c', '#ff5fd0', '#25e4ff', '#ff8b1f'],
+                exploits: ['#ff2a3c', '#ff5fd0', '#25e4ff', '#ff8b1f'],
                 frightened: '#8b6cff',
                 sectorWalls: [
                     {}, // Sector A — ledger blue
@@ -211,7 +211,7 @@ class GameEngine {
                 player: '#fff200',
                 playerHi: '#ffffa8',
                 playerLo: '#e6c800',
-                ghosts: ['#ff3b4d', '#e05fff', '#2ee6ff', '#ffa51e'],
+                exploits: ['#ff3b4d', '#e05fff', '#2ee6ff', '#ffa51e'],
                 frightened: '#33a0ff',
                 sectorWalls: [
                     {}, // A — verdant
@@ -229,7 +229,7 @@ class GameEngine {
                 player: '#fff45a',
                 playerHi: '#ffffb0',
                 playerLo: '#e6c800',
-                ghosts: ['#ff2a55', '#ff7ae0', '#33e0ff', '#ffb02e'],
+                exploits: ['#ff2a55', '#ff7ae0', '#33e0ff', '#ffb02e'],
                 frightened: '#b899ff',
                 sectorWalls: [
                     {}, // A — neon magenta
@@ -310,9 +310,9 @@ class GameEngine {
         return MAZE_LAYOUTS[(this.level - 1) % MAZE_LAYOUTS.length];
     }
 
-    isWalkableTile(tile, forGhost = false) {
+    isWalkableTile(tile, forExploit = false) {
         if (tile === undefined || tile === '#') return false;
-        if (tile === 'H') return forGhost;
+        if (tile === 'H') return forExploit;
         return true; // . O = space R (relic)
     }
 
@@ -371,7 +371,7 @@ class GameEngine {
         this.nextDirY = 0;
 
         this.loadMap();
-        this.spawnGhosts();
+        this.spawnExploits();
         this.updateRelicRosterUI();
 
         const prompt = document.getElementById('start-prompt');
@@ -469,14 +469,14 @@ class GameEngine {
         }
     }
 
-    spawnGhosts() {
+    spawnExploits() {
         const ais = [
             { ai: 'chase', r: 8, c: 14, dirR: -1, dirC: 0, releaseIn: 0, scatterR: 1, scatterC: 26 },
             { ai: 'ambush', r: 9, c: 14, dirR: -1, dirC: 0, releaseIn: 12, scatterR: 1, scatterC: 1 },
             { ai: 'vector', r: 7, c: 13, dirR: 0, dirC: -1, releaseIn: 24, scatterR: 15, scatterC: 26 },
             { ai: 'shy', r: 7, c: 15, dirR: 0, dirC: 1, releaseIn: 36, scatterR: 15, scatterC: 1 }
         ];
-        this.ghosts = GRID_PENGUINS.map((d, id) => ({
+        this.exploits = GRID_PENGUINS.map((d, id) => ({
             id,
             name: d.name,
             ...ais[id],
@@ -1098,11 +1098,11 @@ class GameEngine {
         }
 
         // Exploits (dimmed while Node dies)
-        this.ghosts.forEach(g => {
+        this.exploits.forEach(g => {
             const vulnerable = this.frightenedTurns > 0;
             const color = vulnerable
                 ? (this.frightenedTurns < 12 && Date.now() % 400 < 200 ? '#ffffff' : palette.frightened)
-                : palette.ghosts[g.id];
+                : palette.exploits[g.id];
             const eSize = (ts - 4) * 1.1 * 1.125; // foe scale (+25% then -10%)
             const ePad = (ts - eSize) / 2;
             if (dying) this.ctx.globalAlpha = 0.35;
@@ -1228,7 +1228,7 @@ class GameEngine {
         this.slashChain = 0;
         this.introTicks = 6; // brief READY! beat before the respawned Node goes live
         if (this.activeRelic) this.expireRelic();
-        this.spawnGhosts();
+        this.spawnExploits();
     }
 
     drawNodeDeathAnim() {
@@ -1449,9 +1449,9 @@ class GameEngine {
         this._fxBurstTimers.add(tid);
     }
 
-    slashPenguinFx(ghost, points = 200, chain = 0) {
-        const lore = GRID_PENGUINS[ghost.id] || {};
-        const name = (ghost.name || lore.name || 'PENGUIN').toUpperCase();
+    slashPenguinFx(exploit, points = 200, chain = 0) {
+        const lore = GRID_PENGUINS[exploit.id] || {};
+        const name = (exploit.name || lore.name || 'PENGUIN').toUpperCase();
         const ono = lore.ono || 'SQUAWK!';
         const color = lore.cryColor || '#ff2a2a';
         const accent = lore.accent || '#ffe14d';
@@ -1462,14 +1462,14 @@ class GameEngine {
             scoreText: `+${points}`,
             color,
             accent,
-            c: ghost.c,
-            r: ghost.r,
+            c: exploit.c,
+            r: exploit.r,
             kind: 'slash'
         });
 
         if (window.retroAudio) {
             // Chain slashes squeal higher and higher
-            window.retroAudio.playPenguinScream((lore.pitch || 1) * (1 + chain * 0.14), ghost.id);
+            window.retroAudio.playPenguinScream((lore.pitch || 1) * (1 + chain * 0.14), exploit.id);
         }
     }
 
@@ -1685,7 +1685,7 @@ class GameEngine {
             this.modeIndex++;
             this.globalMode = this.modeSchedule[this.modeIndex].mode;
             this.modeTimer = this.modeSchedule[this.modeIndex].ticks;
-            this.ghosts.forEach(g => {
+            this.exploits.forEach(g => {
                 if (this.map[g.r][g.c] !== 'H') {
                     g.dirR = -g.dirR;
                     g.dirC = -g.dirC;
@@ -1713,7 +1713,7 @@ class GameEngine {
             };
         }
         if (g.ai === 'vector') {
-            const lead = this.ghosts.find(x => x.ai === 'chase') || this.ghosts[0];
+            const lead = this.exploits.find(x => x.ai === 'chase') || this.exploits[0];
             return {
                 r: Math.max(0, Math.min(this.rows - 1, py * 2 - lead.r)),
                 c: Math.max(0, Math.min(this.cols - 1, px * 2 - lead.c))
@@ -1754,7 +1754,7 @@ class GameEngine {
         }
         if (this.invulnerableTurns > 0) this.invulnerableTurns--;
         this.updateGlobalMode();
-        this.ghosts.forEach(g => { if (g.releaseIn > 0) g.releaseIn--; });
+        this.exploits.forEach(g => { if (g.releaseIn > 0) g.releaseIn--; });
 
         if (this.activeRelic) {
             this.relicTimer--;
@@ -1783,7 +1783,7 @@ class GameEngine {
                 this.levelDotsEaten++;
                 this.dotsRemaining--;
                 ateDot = true;
-                if (window.retroAudio) window.retroAudio.playWaka();
+                if (window.retroAudio) window.retroAudio.playHarvest();
                 this.maybeSpawnRelic();
             } else if (char === 'O') {
                 this.map[nextY][nextX] = '=';
@@ -1794,7 +1794,7 @@ class GameEngine {
                 this.frightenedTurns = this.frightenedDuration;
                 this.slashChain = 0;
                 // Classic fright turn-around: swarm reverses away from the audit
-                this.ghosts.forEach(g => {
+                this.exploits.forEach(g => {
                     if (this.map[g.r]?.[g.c] === 'H') return;
                     g.dirR = -g.dirR;
                     g.dirC = -g.dirC;
@@ -1808,7 +1808,7 @@ class GameEngine {
                     setTimeout(() => stack.classList.remove('cert-flash'), 420);
                 }
                 if (window.retroAudio) {
-                    window.retroAudio.playWaka();
+                    window.retroAudio.playHarvest();
                     window.retroAudio.startMusic(true);
                 }
                 window.web3Simulator.log('Audit Cert sealed — Exploits exposed. Slash while the window holds!', 'event');
@@ -1821,9 +1821,9 @@ class GameEngine {
             window.web3Simulator.registerMoveAndEatTransaction(nextX, nextY, ateDot);
         }
 
-        if (this.invulnerableTurns <= 0) this.checkGhostCollisions();
-        this.moveGhosts();
-        if (this.invulnerableTurns <= 0) this.checkGhostCollisions();
+        if (this.invulnerableTurns <= 0) this.checkExploitCollisions();
+        this.moveExploits();
+        if (this.invulnerableTurns <= 0) this.checkExploitCollisions();
         this.checkLevelCompletion();
 
         if (this.frightenedTurns > 0) {
@@ -1836,8 +1836,8 @@ class GameEngine {
         this.updateUI();
     }
 
-    checkGhostCollisions() {
-        const hit = this.ghosts.find(g => g.r === this.player.y && g.c === this.player.x);
+    checkExploitCollisions() {
+        const hit = this.exploits.find(g => g.r === this.player.y && g.c === this.player.x);
         if (!hit) return;
 
         if (this.frightenedTurns > 0) {
@@ -1847,7 +1847,7 @@ class GameEngine {
             this.slashChain = Math.min(3, this.slashChain + 1);
             this.score += points;
             this.slashPenguinFx(hit, points, chain);
-            window.web3Simulator.eatGhostTransaction(hit.id);
+            window.web3Simulator.slashExploitTransaction(hit.id);
             hit.r = hit.startR;
             hit.c = hit.startC;
             hit.releaseIn = 16;
@@ -1861,11 +1861,11 @@ class GameEngine {
         }
     }
 
-    moveGhosts() {
+    moveExploits() {
         const isVulnerable = this.frightenedTurns > 0;
         const elroy = this.dotsRemaining > 0 && this.dotsRemaining < 45;
 
-        this.ghosts.forEach(g => {
+        this.exploits.forEach(g => {
             if (g.releaseIn > 0 && this.map[g.r][g.c] === 'H') {
                 const dirs = this.getValidDirections(g.r, g.c, true, g);
                 if (dirs.length) {
@@ -1909,18 +1909,18 @@ class GameEngine {
         });
     }
 
-    getValidDirections(r, c, forGhost = false, ghost = null) {
+    getValidDirections(r, c, forExploit = false, exploit = null) {
         const dirs = [
             { dr: -1, dc: 0 }, { dr: 1, dc: 0 },
             { dr: 0, dc: -1 }, { dr: 0, dc: 1 }
         ];
         return dirs.filter(d => {
-            if (ghost && ghost.dirR === -d.dr && ghost.dirC === -d.dc) {
+            if (exploit && exploit.dirR === -d.dr && exploit.dirC === -d.dc) {
                 const others = dirs.filter(o => !(o.dr === d.dr && o.dc === d.dc));
                 const anyOther = others.some(o => {
                     const or2 = r + o.dr;
                     const oc2 = this.wrapCol(c + o.dc);
-                    return or2 >= 0 && or2 < this.rows && this.isWalkableTile(this.map[or2]?.[oc2], forGhost);
+                    return or2 >= 0 && or2 < this.rows && this.isWalkableTile(this.map[or2]?.[oc2], forExploit);
                 });
                 if (anyOther) return false;
             }
@@ -1931,12 +1931,12 @@ class GameEngine {
                 nc = this.wrapCol(nc);
             }
             if (nr < 0 || nr >= this.rows || nc < 0 || nc >= this.cols) return false;
-            return this.isWalkableTile(this.map[nr][nc], forGhost);
+            return this.isWalkableTile(this.map[nr][nc], forExploit);
         });
     }
 
-    findBestDirectionToTarget(startR, startC, targetR, targetC, ghost = null) {
-        const validDirs = this.getValidDirections(startR, startC, true, ghost);
+    findBestDirectionToTarget(startR, startC, targetR, targetC, exploit = null) {
+        const validDirs = this.getValidDirections(startR, startC, true, exploit);
         if (!validDirs.length) return { dr: 0, dc: 0 };
         let bestDir = validDirs[0];
         let bestScore = Infinity;
@@ -1981,7 +1981,7 @@ class GameEngine {
             kind: 'relic'
         });
         this.loadMap();
-        this.spawnGhosts();
+        this.spawnExploits();
         this.player.x = this.player.startX;
         this.player.y = this.player.startY;
         this.dirX = -1; this.dirY = 0;
