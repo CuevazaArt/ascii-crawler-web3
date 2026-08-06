@@ -1198,6 +1198,7 @@ class Web3Simulator {
         if (best > 0) this.log(`Welcome back · personal best ${this.formatScoreDisplay(best)} pts.`, 'event');
         this.refreshScoreUI();
         await this.refreshLiveBalance({ announce: true });
+        await this.resumePendingStake();
     }
 
     async refreshLiveBalance({ announce = false } = {}) {
@@ -1294,29 +1295,119 @@ class Web3Simulator {
             });
             this.logTx(`Stake signed · ${txid.slice(0, 14)}…`, live.explorerTx(txid));
 
+            // From here the player's XRP is on-ledger: remember the stake until
+            // the backend confirms the run, so a hiccup can't strand it.
+            this.savePendingStake({ intentId: intent.intentId, txHash: txid });
+
             this.log('Verifying stake on-ledger (validated Payment to operator)…', 'system');
-            const start = await live.api('/api/run/start', {
+            const start = await this.startRunWithRetry({
                 account: this.walletAddress,
                 intentId: intent.intentId,
                 txHash: txid
             });
-
-            this.liveRun = { runId: start.runId, token: start.token };
-            this._liveEvents = [];
-            this.sessionXrpEarned = 0;
-            this.sessionPendingEarn = 0;
-            this.sessionEarnEscrow = Number(start.escrow) || this.roundXrp(XRPL.ENTRY_STAKE * XRPL.STAKE_SPLIT.earn);
-            this.applyLiveEconomy(start.economy);
-            this.log(`Run verified · escrow ${this.sessionEarnEscrow} XRP reclaimable by skill · settle on Claim/Exit.`, 'event');
-            this.refreshLiveBalance();
-
-            this.gameActive = true;
-            this.pauseAttractCycle();
-            if (this.btnClaimExit) this.btnClaimExit.disabled = false;
-            if (window.gameEngine) window.gameEngine.startGame(this.activeHeroSkin);
+            this.clearPendingStake();
+            this.bootLiveRun(start);
         } catch (e) {
             this.log(`Stake aborted: ${e?.message || e}`, 'alert');
+            if (this.getPendingStake()) {
+                this.log('Your signed stake is saved — reconnect or press Boot again to resume it.', 'system');
+            }
             this.btnStartRun.disabled = false;
+        }
+    }
+
+    /** Boot the game once the backend has verified the stake and issued a run. */
+    bootLiveRun(start) {
+        this.liveRun = { runId: start.runId, token: start.token };
+        this._liveEvents = [];
+        this.sessionXrpEarned = 0;
+        this.sessionPendingEarn = 0;
+        this.sessionEarnEscrow = Number(start.escrow) || this.roundXrp(XRPL.ENTRY_STAKE * XRPL.STAKE_SPLIT.earn);
+        this.applyLiveEconomy(start.economy);
+        this.log(`Run verified · escrow ${this.sessionEarnEscrow} XRP reclaimable by skill · settle on Claim/Exit.`, 'event');
+        this.refreshLiveBalance();
+
+        this.gameActive = true;
+        this.pauseAttractCycle();
+        this.btnStartRun.disabled = true;
+        if (this.btnClaimExit) this.btnClaimExit.disabled = false;
+        if (window.gameEngine) window.gameEngine.startGame(this.activeHeroSkin);
+    }
+
+    /**
+     * /api/run/start with retries: the stake Payment is already validated
+     * on-ledger, so transient backend errors must not strand the player's XRP.
+     * Definitive rejections (replayed hash, expired intent…) abort immediately.
+     */
+    async startRunWithRetry(payload, attempts = 3) {
+        let lastErr;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                return await window.xrplLive.api('/api/run/start', payload);
+            } catch (e) {
+                lastErr = e;
+                const msg = String(e?.message || e).toLowerCase();
+                const definitive = ['already consumed', 'already used', 'expired', 'invalid', 'different account', 'not the operator']
+                    .some((s) => msg.includes(s));
+                if (definitive) throw e;
+                if (i < attempts - 1) {
+                    this.log(`Operator API hiccup (${e?.message || e}) — retrying stake verification…`, 'alert');
+                    await new Promise((r) => setTimeout(r, 2500 * (i + 1)));
+                }
+            }
+        }
+        throw lastErr;
+    }
+
+    // ——— Pending-stake safety net (signed Payment not yet turned into a run) ———
+
+    savePendingStake(data) {
+        try {
+            localStorage.setItem('lr-pending-stake', JSON.stringify({
+                ...data, account: this.walletAddress, ts: Date.now()
+            }));
+        } catch (_) { /* storage full/blocked — retry path still works in-session */ }
+    }
+
+    getPendingStake() {
+        try {
+            const raw = localStorage.getItem('lr-pending-stake');
+            if (!raw) return null;
+            const p = JSON.parse(raw);
+            // Server intents expire after ~15 min; drop stale entries
+            if (!p.txHash || Date.now() - (p.ts || 0) > 14 * 60 * 1000) {
+                this.clearPendingStake();
+                return null;
+            }
+            return p;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    clearPendingStake() {
+        try { localStorage.removeItem('lr-pending-stake'); } catch (_) { /* noop */ }
+    }
+
+    /** On reconnect: turn a stranded signed stake into its run and boot it. */
+    async resumePendingStake() {
+        const p = this.getPendingStake();
+        if (!p || p.account !== this.walletAddress || this.gameActive) return;
+        this.logTx(`Signed stake found from a previous session · ${p.txHash.slice(0, 12)}… — resuming run.`, window.xrplLive.explorerTx(p.txHash));
+        try {
+            const start = await this.startRunWithRetry({
+                account: p.account, intentId: p.intentId, txHash: p.txHash
+            }, 2);
+            this.clearPendingStake();
+            this.bootLiveRun(start);
+        } catch (e) {
+            const msg = String(e?.message || e).toLowerCase();
+            if (msg.includes('already consumed') || msg.includes('expired') || msg.includes('already used')) {
+                this.clearPendingStake();
+                this.log('Previous stake was already settled by the operator (auto-settle covers abandoned runs).', 'system');
+            } else {
+                this.log(`Could not resume the pending stake yet: ${e?.message || e}`, 'alert');
+            }
         }
     }
 
@@ -1437,7 +1528,7 @@ class Web3Simulator {
 
     async livePermadeath(stats) {
         this.gameActive = false; // freeze accrual before the async settle
-        this.log('UPTIME 0 — Node slashed. Settling harvested XRP + ScoreCommit…', 'alert');
+        this.log('UPTIME 0 — the penguin guardians secured the sector. Settling harvested XRP + ScoreCommit…', 'alert');
         let res = null;
         try {
             res = await this.liveSettleRequest('slash', stats);

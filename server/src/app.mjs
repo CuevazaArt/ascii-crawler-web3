@@ -5,7 +5,8 @@ import {
 import {
     getBags, setBags, currentEpoch, epochBoard, recordEpochScore,
     addHistory, listHistory, upsertWalletRun, alltimeBoard,
-    paidInWindow, queuePayout, markPayoutPaid, pendingPayouts
+    paidInWindow, queuePayout, markPayoutPaid, pendingPayouts,
+    setPayoutStatus, reviewPayouts, pruneIntents
 } from './db.mjs';
 
 const R_ADDRESS = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
@@ -216,7 +217,11 @@ export function createApp({ cfg, db, ledger, log = console }) {
             level: Math.max(run.level, Math.min(Number(snapshot?.level) || 1, 3))
         }, events, now);
 
-        const snapScore = Math.max(run.snapshot_score, Math.floor(Number(snapshot?.score) || 0));
+        // Clamp before storing: plausibility bounds apply again at settle
+        const snapScore = Math.min(
+            Math.max(run.snapshot_score, Math.floor(Number(snapshot?.score) || 0)),
+            1_000_000
+        );
         db.prepare(`
             UPDATE runs SET drops = ?, slashes = ?, relics = ?, level = ?, snapshot_score = ?, last_event_ms = ?
             WHERE id = ?
@@ -240,6 +245,9 @@ export function createApp({ cfg, db, ledger, log = console }) {
         if (!claimed.changes) {
             const fresh = db.prepare('SELECT * FROM runs WHERE id = ?').get(run.id);
             if (fresh.state === 'settled' && fresh.settle_json) return JSON.parse(fresh.settle_json);
+            if (fresh.state === 'needs-review') {
+                throw new ApiError(409, 'run is under operator review — payout will be resolved manually');
+            }
             throw new ApiError(409, 'settle already in progress');
         }
 
@@ -280,18 +288,33 @@ export function createApp({ cfg, db, ledger, log = console }) {
             let txHash = null;
             let ledgerIndex = 0;
             if (result.payout > 0 && !deferred) {
-                const sent = await ledger.sendPayout({
-                    account: run.account,
-                    amountXrp: result.payout,
-                    memoType: MEMO_TYPE_SCORE,
-                    memoData
+                // Crash safety: record the intent-to-pay BEFORE submitting. If the
+                // process dies mid-send, boot recovery parks this run for manual
+                // review instead of ever re-paying it.
+                const sendingId = queuePayout(db, {
+                    kind: 'run', account: run.account, amount: result.payout,
+                    status: 'sending', note: run.id
                 });
+                let sent;
+                try {
+                    sent = await ledger.sendPayout({
+                        account: run.account,
+                        amountXrp: result.payout,
+                        memoType: MEMO_TYPE_SCORE,
+                        memoData
+                    });
+                } catch (e) {
+                    // Outcome unknown (ws drop, timeout…): park it, never retry blindly
+                    setPayoutStatus(db, sendingId, 'review');
+                    db.prepare("UPDATE runs SET state = 'needs-review' WHERE id = ?").run(run.id);
+                    addHistory(db, 'alert', { label: `Run ${run.id.slice(0, 8)} payout needs review: ${e.message}` });
+                    log.error?.(`[settle] payout uncertain for run ${run.id}: ${e.message}`);
+                    throw new ApiError(503, 'payout submission uncertain — the operator will resolve this run manually');
+                }
                 txHash = sent.hash;
                 ledgerIndex = sent.ledgerIndex;
-                queuePayout(db, {
-                    kind: 'run', account: run.account, amount: result.payout,
-                    status: 'paid', tx: txHash, note: reason
-                });
+                markPayoutPaid(db, sendingId, txHash);
+                db.prepare('UPDATE payouts SET note = ? WHERE id = ?').run(reason, sendingId);
             } else if (result.payout > 0 && deferred) {
                 queuePayout(db, {
                     kind: 'run-deferred', account: run.account, amount: result.payout,
@@ -396,6 +419,31 @@ export function createApp({ cfg, db, ledger, log = console }) {
                 log.warn?.(`[reaper] could not settle ${run.id.slice(0, 8)}: ${e.message}`);
             }
         }
+        pruneIntents(db, now - cfg.intentTtlMs * 2);
+    }
+
+    /**
+     * Boot recovery after a crash. Two cases:
+     * - payouts stuck in 'sending': the Payment may or may not have reached the
+     *   ledger → park run + payout for manual review (never auto re-pay).
+     * - runs stuck in 'settling' with no 'sending' payout: nothing was submitted
+     *   → safely reopen them so the reaper or the player can settle again.
+     */
+    function recoverInterrupted() {
+        const stuckPays = db.prepare("SELECT * FROM payouts WHERE status = 'sending'").all();
+        for (const p of stuckPays) {
+            setPayoutStatus(db, p.id, 'review');
+            if (p.kind === 'run' && p.note) {
+                db.prepare("UPDATE runs SET state = 'needs-review' WHERE id = ? AND state != 'settled'").run(p.note);
+            }
+            addHistory(db, 'alert', { label: `Interrupted payout #${p.id} (${p.amount} XRP) parked for review` });
+            log.error?.(`[recover] payout #${p.id} → review (${p.amount} XRP to ${p.account})`);
+        }
+        const reopened = db.prepare(
+            "UPDATE runs SET state = 'active' WHERE state = 'settling'"
+        ).run();
+        if (reopened.changes) log.warn?.(`[recover] reopened ${reopened.changes} interrupted settle(s)`);
+        return { parked: stuckPays.length, reopened: reopened.changes };
     }
 
     function getLeaderboard() {
@@ -422,7 +470,11 @@ export function createApp({ cfg, db, ledger, log = console }) {
 
     function adminPending({ token }) {
         checkAdmin(token);
-        return { pending: pendingPayouts(db) };
+        return {
+            pending: pendingPayouts(db),          // safe to approve (never submitted)
+            review: reviewPayouts(db),            // outcome unknown — verify on-ledger first
+            needsReview: db.prepare("SELECT id, account, payout, reason FROM runs WHERE state = 'needs-review'").all()
+        };
     }
 
     async function adminApprove({ token }) {
@@ -442,6 +494,7 @@ export function createApp({ cfg, db, ledger, log = console }) {
         adminApprove,
         ensureEpoch,
         reapStaleRuns,
+        recoverInterrupted,
         executePendingPayouts,
         runToken
     };

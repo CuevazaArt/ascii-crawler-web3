@@ -75,6 +75,14 @@ const routes = {
     'POST /api/admin/approve': (body) => app.adminApprove(body)
 };
 
+function clientIp(req) {
+    if (cfg.trustProxy) {
+        const xff = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+        if (xff) return xff;
+    }
+    return req.socket.remoteAddress || 'unknown';
+}
+
 const server = http.createServer(async (req, res) => {
     const origin = req.headers.origin || '';
     const headers = { 'Content-Type': 'application/json', ...corsHeaders(origin) };
@@ -87,7 +95,15 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    const ip = req.socket.remoteAddress || 'unknown';
+    // With an allowlist configured, browser requests from foreign origins are
+    // rejected outright (defense in depth beyond the CORS response headers)
+    if (cfg.allowedOrigins.length && origin && !cfg.allowedOrigins.includes(origin)) {
+        res.writeHead(403, headers);
+        res.end(JSON.stringify({ error: 'origin not allowed' }));
+        return;
+    }
+
+    const ip = clientIp(req);
     if (rateLimited(ip)) {
         res.writeHead(429, headers);
         res.end(JSON.stringify({ error: 'rate limited' }));
@@ -113,6 +129,12 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: e.message || 'internal error' }));
     }
 });
+
+// Crash recovery must run before any request can touch interrupted runs
+const recovered = app.recoverInterrupted();
+if (recovered.parked) {
+    console.error(`[recover] ${recovered.parked} interrupted payout(s) parked for manual review`);
+}
 
 // Background jobs: epoch rollover + stale-run reaper
 const tick = setInterval(() => {
@@ -142,9 +164,11 @@ server.listen(cfg.port, async () => {
     }
 });
 
-process.on('SIGINT', async () => {
+async function shutdown() {
     clearInterval(tick);
     server.close();
     await ledger.disconnect().catch(() => {});
     process.exit(0);
-});
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown); // Render/Railway send SIGTERM on deploys

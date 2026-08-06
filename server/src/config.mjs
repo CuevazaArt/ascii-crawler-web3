@@ -46,6 +46,8 @@ export function loadConfig(env = process.env) {
         adminToken,
         adminTokenGenerated,
         runTokenSecret,
+        // Behind Render/Railway the client IP arrives in X-Forwarded-For
+        trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
         dbFile: (env.DB_FILE || 'data/leakrunner.db').trim(),
         epochMs: Number(env.EPOCH_MS) || 24 * 60 * 60 * 1000,
         runTtlMs: Number(env.RUN_TTL_MS) || 30 * 60 * 1000,

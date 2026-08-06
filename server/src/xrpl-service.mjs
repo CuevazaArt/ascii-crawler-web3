@@ -9,6 +9,18 @@ export class XrplService {
         this.wallet = xrpl.Wallet.fromSeed(seed);
         this.client = null;
         this._connecting = null;
+        this._sendChain = Promise.resolve();
+    }
+
+    /**
+     * All operator-signed transactions go through a single-flight queue:
+     * concurrent submits from one account race on the Sequence number
+     * (tefPAST_SEQ), and serializing also keeps the daily-cap check honest.
+     */
+    _enqueueSend(fn) {
+        const run = this._sendChain.then(fn, fn);
+        this._sendChain = run.then(() => {}, () => {});
+        return run;
     }
 
     get address() {
@@ -117,36 +129,40 @@ export class XrplService {
     }
 
     /** Operator → player Payment carrying the ScoreCommit memo. */
-    async sendPayout({ account, amountXrp, memoType, memoData }) {
-        const c = await this.getClient();
-        const tx = {
-            TransactionType: 'Payment',
-            Account: this.address,
-            Destination: account,
-            Amount: xrpl.xrpToDrops(amountXrp.toFixed(6)),
-            Memos: [XrplService.toMemo(memoType, memoData)]
-        };
-        const prepared = await c.autofill(tx);
-        const signed = this.wallet.sign(prepared);
-        const res = await c.submitAndWait(signed.tx_blob);
-        const result = res.result?.meta?.TransactionResult;
-        if (result !== 'tesSUCCESS') throw new Error(`payout failed on-ledger (${result})`);
-        return { hash: res.result.hash, ledgerIndex: res.result.ledger_index };
+    sendPayout({ account, amountXrp, memoType, memoData }) {
+        return this._enqueueSend(async () => {
+            const c = await this.getClient();
+            const tx = {
+                TransactionType: 'Payment',
+                Account: this.address,
+                Destination: account,
+                Amount: xrpl.xrpToDrops(amountXrp.toFixed(6)),
+                Memos: [XrplService.toMemo(memoType, memoData)]
+            };
+            const prepared = await c.autofill(tx);
+            const signed = this.wallet.sign(prepared);
+            const res = await c.submitAndWait(signed.tx_blob);
+            const result = res.result?.meta?.TransactionResult;
+            if (result !== 'tesSUCCESS') throw new Error(`payout failed on-ledger (${result})`);
+            return { hash: res.result.hash, ledgerIndex: res.result.ledger_index };
+        });
     }
 
     /** Zero-payout runs still ink their ScoreCommit: no-op AccountSet with memo. */
-    async sendScoreMemo({ memoType, memoData }) {
-        const c = await this.getClient();
-        const tx = {
-            TransactionType: 'AccountSet',
-            Account: this.address,
-            Memos: [XrplService.toMemo(memoType, memoData)]
-        };
-        const prepared = await c.autofill(tx);
-        const signed = this.wallet.sign(prepared);
-        const res = await c.submitAndWait(signed.tx_blob);
-        const result = res.result?.meta?.TransactionResult;
-        if (result !== 'tesSUCCESS') throw new Error(`memo tx failed on-ledger (${result})`);
-        return { hash: res.result.hash, ledgerIndex: res.result.ledger_index };
+    sendScoreMemo({ memoType, memoData }) {
+        return this._enqueueSend(async () => {
+            const c = await this.getClient();
+            const tx = {
+                TransactionType: 'AccountSet',
+                Account: this.address,
+                Memos: [XrplService.toMemo(memoType, memoData)]
+            };
+            const prepared = await c.autofill(tx);
+            const signed = this.wallet.sign(prepared);
+            const res = await c.submitAndWait(signed.tx_blob);
+            const result = res.result?.meta?.TransactionResult;
+            if (result !== 'tesSUCCESS') throw new Error(`memo tx failed on-ledger (${result})`);
+            return { hash: res.result.hash, ledgerIndex: res.result.ledger_index };
+        });
     }
 }

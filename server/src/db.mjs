@@ -234,6 +234,19 @@ export function markPayoutPaid(db, id, tx, ts = Date.now()) {
     db.prepare("UPDATE payouts SET status = 'paid', tx = ?, executed_ms = ? WHERE id = ?").run(tx, ts, id);
 }
 
+export function setPayoutStatus(db, id, status) {
+    db.prepare('UPDATE payouts SET status = ? WHERE id = ?').run(status, id);
+}
+
 export function pendingPayouts(db) {
     return db.prepare("SELECT * FROM payouts WHERE status = 'pending' ORDER BY id").all();
+}
+
+/** Payouts whose on-ledger outcome is unknown (crash mid-send) — human eyes only. */
+export function reviewPayouts(db) {
+    return db.prepare("SELECT * FROM payouts WHERE status = 'review' ORDER BY id").all();
+}
+
+export function pruneIntents(db, olderThanMs) {
+    db.prepare('DELETE FROM intents WHERE used = 1 OR created_ms < ?').run(olderThanMs);
 }

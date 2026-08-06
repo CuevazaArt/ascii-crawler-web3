@@ -8,13 +8,14 @@ const PLAYER = 'rN7n7otQDd6FczFgLdSqtcsAUxDkw6fzRH';
 const OPERATOR = 'rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh';
 const TX = 'C'.repeat(64);
 
-function mockLedger() {
+function mockLedger({ failPayout = false } = {}) {
     const calls = { payouts: [], memos: [] };
     return {
         calls,
         address: OPERATOR,
         verifyStakeTx: async ({ txHash }) => ({ deliveredXrp: 0.5, ledgerIndex: 90_000_001 }),
         sendPayout: async ({ account, amountXrp, memoData }) => {
+            if (failPayout) throw new Error('websocket dropped mid-submit');
             calls.payouts.push({ account, amountXrp, memoData });
             return { hash: 'A'.repeat(64), ledgerIndex: 90_000_002 };
         },
@@ -26,7 +27,7 @@ function mockLedger() {
     };
 }
 
-function boot(envOver = {}) {
+function boot(envOver = {}, ledgerOpts = {}) {
     const cfg = loadConfig({
         XRPL_NETWORK: 'testnet',
         XRPL_OPERATOR_SEED: 'sEdTM1uX8pu2do5XvTnutH6HsouMaM2', // format-valid seed, never funded
@@ -35,7 +36,7 @@ function boot(envOver = {}) {
         ...envOver
     });
     const db = openDb(':memory:');
-    const ledger = mockLedger();
+    const ledger = mockLedger(ledgerOpts);
     const app = createApp({ cfg, db, ledger, log: { info() {}, warn() {}, error() {} } });
     return { cfg, db, ledger, app };
 }
@@ -227,4 +228,58 @@ test('admin endpoints reject a bad token', async () => {
     const { app } = boot();
     assert.throws(() => app.adminPending({ token: 'wrong' }), /bad admin token/);
     await assert.rejects(app.adminApprove({ token: 'wrong' }), /bad admin token/);
+});
+
+test('uncertain payout submissions park the run for review — never double-payable', async () => {
+    const { app, db } = boot({}, { failPayout: true });
+    const start = await startRun(app, db);
+    app.postEvents({
+        runId: start.runId,
+        token: start.token,
+        events: Array.from({ length: 50 }, () => ({ t: 'drop' })),
+        snapshot: { score: 300, level: 1, drops: 50 }
+    });
+
+    await assert.rejects(
+        app.postSettle({ runId: start.runId, token: start.token, reason: 'cashout', stats: { score: 300 } }),
+        /uncertain|manually/
+    );
+    const run = db.prepare('SELECT state FROM runs WHERE id = ?').get(start.runId);
+    assert.equal(run.state, 'needs-review');
+
+    // No blind retry allowed: the Payment may have landed on-ledger
+    await assert.rejects(
+        app.postSettle({ runId: start.runId, token: start.token, reason: 'cashout', stats: { score: 300 } }),
+        /review/
+    );
+    const admin = app.adminPending({ token: 'test-admin' });
+    assert.equal(admin.review.length, 1);
+    assert.equal(admin.review[0].status, 'review');
+    assert.equal(admin.needsReview.length, 1);
+});
+
+test('boot recovery reopens clean interrupted settles and parks unknown sends', async () => {
+    const { app, db } = boot();
+
+    // Case A: crash before any submission → run stuck in 'settling', no payout row
+    const a = await startRun(app, db);
+    db.prepare("UPDATE runs SET state = 'settling' WHERE id = ?").run(a.runId);
+
+    // Case B: crash mid-send → payout row stuck in 'sending'
+    const intentB = app.postIntent({ account: PLAYER });
+    const b = await app.postStart({ account: PLAYER, intentId: intentB.intentId, txHash: 'E'.repeat(64) });
+    db.prepare("UPDATE runs SET state = 'settling' WHERE id = ?").run(b.runId);
+    db.prepare(`
+        INSERT INTO payouts (kind, account, amount, status, note, created_ms)
+        VALUES ('run', ?, 0.05, 'sending', ?, ?)
+    `).run(PLAYER, b.runId, Date.now());
+
+    const recovered = app.recoverInterrupted();
+    assert.equal(recovered.parked, 1);
+    assert.equal(recovered.reopened, 1);
+
+    assert.equal(db.prepare('SELECT state FROM runs WHERE id = ?').get(a.runId).state, 'active');
+    assert.equal(db.prepare('SELECT state FROM runs WHERE id = ?').get(b.runId).state, 'needs-review');
+    const admin = app.adminPending({ token: 'test-admin' });
+    assert.equal(admin.review.length, 1);
 });
