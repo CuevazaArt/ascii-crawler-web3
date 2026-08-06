@@ -9,6 +9,7 @@ test('index.html declares the expected control surface', () => {
         'btn-legal-docs',
         'btn-github-repo',
         'btn-arcade-start',
+        'btn-api-panel',
         'btn-start-run',
         'btn-claim-exit',
         'btn-session-keys',
@@ -17,15 +18,38 @@ test('index.html declares the expected control surface', () => {
         'btn-palette-pico',
         'btn-tos-accept',
         'btn-tos-decline',
-        'btn-close-gameover',
-        'chk-bypass-web3'
+        'btn-stake-confirm',
+        'btn-stake-add-coin',
+        'btn-stake-remove-coin',
+        'btn-lobby-stake-add',
+        'btn-lobby-stake-remove',
+        'btn-rail-stake-add',
+        'btn-rail-stake-remove',
+        'btn-stake-remove-coin',
+        'btn-stake-cancel',
+        'stake-confirm-modal',
+        'stance-triad',
+        'stance-win',
+        'stance-vdb',
+        'stance-lose',
+        'btn-close-gameover'
     ];
     for (const id of ids) {
         assert.match(html, new RegExp(`id="${id}"`), `missing button/control #${id}`);
     }
-    assert.match(html, /arcade-start-label">START<\/span>/);
-    assert.match(html, /arcade-start-key/);
+    assert.match(html, /id="arcade-start-stake"/);
+    assert.match(html, /START WITH.*arcade-start-stake.*XRP/s);
+    assert.match(html, /data-stake-add/);
+    assert.match(html, /data-stake-remove/);
     assert.match(html, /PRESS\s*<kbd>S<\/kbd>/);
+});
+
+test('API panel link targets operator dashboard on localhost', () => {
+    const { document } = loadApp();
+    const btn = document.getElementById('btn-api-panel');
+    assert.ok(btn);
+    assert.match(btn.getAttribute('href'), /^http:\/\/127\.0\.0\.1:8787\/?$/);
+    assert.match(btn.textContent, /API/i);
 });
 
 test('Legal · ToS button links to docs/legal.html', () => {
@@ -43,16 +67,14 @@ test('GitHub button links to the project repository', () => {
     assert.equal(btn.getAttribute('href'), 'https://github.com/CuevazaArt/ascii-crawler-web3');
 });
 
-test('Demo Mode switch lives in the header before Legal · ToS', () => {
+test('Demo toggle is not exposed in the header (live-only play)', () => {
     const { document } = loadApp();
+    assert.equal(document.getElementById('chk-bypass-web3'), null);
+    assert.equal(document.querySelector('.header-demo-toggle'), null);
     const tray = document.querySelector('.header-chip-tray');
-    const demo = document.getElementById('chk-bypass-web3');
     const legal = document.getElementById('btn-legal-docs');
     assert.ok(tray);
-    assert.ok(tray.contains(demo));
-    assert.ok(demo.closest('label')?.classList.contains('header-demo-toggle'));
-    const kids = [...tray.children];
-    assert.ok(kids.indexOf(demo.closest('label')) < kids.indexOf(legal));
+    assert.ok(tray.contains(legal));
 });
 
 test('Connect Xaman opens ToS; Decline cancels; Accept connects wallet', async () => {
@@ -113,36 +135,256 @@ test('Disconnect clears wallet; balance eye toggles visibility', async () => {
     assert.equal(bal.dataset.visible, '1');
 });
 
-test('Demo Mode enables Demo Boot and starts a run', async () => {
-    const { window, document } = loadApp();
-    const sim = window.web3Simulator;
-    const engine = window.gameEngine;
+test('±0.5 buttons adjust stake shown on START', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        if (window.XRPL_LIVE_CONFIG) window.XRPL_LIVE_CONFIG.mode = 'sim';
+        const sim = window.web3Simulator;
 
-    const chk = document.getElementById('chk-bypass-web3');
-    chk.checked = true;
-    chk.dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-connect').click();
+        document.getElementById('chk-tos-agree').checked = true;
+        document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-tos-accept').click();
+        await sleep(1100);
 
-    const start = document.getElementById('btn-start-run');
-    assert.equal(start.disabled, false);
-    assert.match(start.textContent, /Demo Boot/i);
+        assert.equal(document.getElementById('btn-lobby-stake-remove').disabled, true);
 
-    start.click();
-    await sleep(50);
-    assert.equal(sim.gameActive, true);
-    assert.equal(engine.isActive, true);
-    assert.equal(document.getElementById('btn-claim-exit').disabled, false);
+        await sleep(200);
+        document.getElementById('btn-lobby-stake-add').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 1);
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '0.5');
+        assert.equal(document.getElementById('btn-lobby-stake-remove').disabled, false);
+
+        await sleep(200);
+        document.getElementById('btn-lobby-stake-add').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 2);
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '1');
+
+        await sleep(200);
+        document.getElementById('btn-rail-stake-remove').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 1);
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '0.5');
+    } finally {
+        dispose();
+    }
 });
 
-test('Arcade [S]TART boots via Demo Mode', async () => {
-    const { window, document } = loadApp();
-    const chk = document.getElementById('chk-bypass-web3');
-    chk.checked = true;
-    chk.dispatchEvent(new window.Event('change', { bubbles: true }));
+test('Arcade START label shows stacked stake amount', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        if (window.XRPL_LIVE_CONFIG) window.XRPL_LIVE_CONFIG.mode = 'sim';
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '0.5');
 
-    document.getElementById('btn-arcade-start').click();
-    await sleep(50);
-    assert.equal(window.web3Simulator.gameActive, true);
+        document.getElementById('btn-connect').click();
+        document.getElementById('chk-tos-agree').checked = true;
+        document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-tos-accept').click();
+        await sleep(1100);
+
+        document.getElementById('btn-start-run').click();
+        await sleep(40);
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '0.5');
+
+        await sleep(200);
+        document.getElementById('btn-stake-add-coin').click();
+        await sleep(40);
+        assert.equal(document.getElementById('arcade-start-stake').textContent, '1');
+    } finally {
+        dispose();
+    }
+});
+
+test('Arcade START confirm boots sim run', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        const sim = window.web3Simulator;
+        if (window.XRPL_LIVE_CONFIG) window.XRPL_LIVE_CONFIG.mode = 'sim';
+
+        document.getElementById('btn-connect').click();
+        document.getElementById('chk-tos-agree').checked = true;
+        document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-tos-accept').click();
+        await sleep(1100);
+
+        document.getElementById('btn-arcade-start').click();
+        await sleep(40);
+        assert.equal(document.getElementById('stake-confirm-modal').style.display, 'flex');
+
+        document.getElementById('btn-arcade-start').click();
+        await sleep(1400);
+        assert.equal(sim.gameActive, true);
+        assert.equal(window.gameEngine.isActive, true);
+        sim.resetGameState();
+    } finally {
+        dispose();
+    }
+});
+
+test('Arcade START opens stake modal when connected (sim)', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        const sim = window.web3Simulator;
+        if (window.XRPL_LIVE_CONFIG) window.XRPL_LIVE_CONFIG.mode = 'sim';
+
+        document.getElementById('btn-connect').click();
+        document.getElementById('chk-tos-agree').checked = true;
+        document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-tos-accept').click();
+        await sleep(1100);
+
+        const modal = document.getElementById('stake-confirm-modal');
+        document.getElementById('btn-arcade-start').click();
+        await sleep(40);
+        assert.equal(modal.style.display, 'flex');
+        assert.equal(sim.participationCoins, 1);
+    } finally {
+        dispose();
+    }
+});
+
+test('Arcade START opens ToS when wallet disconnected', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        document.getElementById('btn-arcade-start').click();
+        await sleep(20);
+        assert.equal(document.getElementById('tos-modal').style.display, 'flex');
+        assert.equal(window.web3Simulator.isConnected, false);
+    } finally {
+        dispose();
+    }
+});
+
+test('Stake button opens consequences modal; cancel does not start a run', async () => {
+    const { window, document } = loadApp();
+    const sim = window.web3Simulator;
+
+    // Force sim rails so Stake does not open Xaman
+    if (window.XRPL_CONFIG) window.XRPL_CONFIG.mode = 'sim';
+    document.getElementById('btn-connect').click();
+    document.getElementById('chk-tos-agree').checked = true;
+    document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+    document.getElementById('btn-tos-accept').click();
+    await sleep(1100);
+
+    const modal = document.getElementById('stake-confirm-modal');
+    assert.ok(modal);
+    document.getElementById('btn-start-run').click();
+    await sleep(40);
+    assert.equal(modal.style.display, 'flex');
+    assert.equal(sim.participationCoins, 1);
+    assert.match(document.getElementById('stake-split-panel').textContent, /Earn escrow/i);
+    assert.equal(sim.gameActive, false);
+
+    document.getElementById('btn-stake-cancel').click();
+    await sleep(20);
+    assert.notEqual(modal.style.display, 'flex');
+    assert.equal(sim.gameActive, false);
+    assert.equal(sim.participationCoins, 1); // stack kept for next press
+});
+
+test('Each +0.5 press stacks participation coins', async () => {
+    const { window, document, dispose } = loadApp();
+    try {
+        const sim = window.web3Simulator;
+        if (window.XRPL_CONFIG) window.XRPL_CONFIG.mode = 'sim';
+
+        document.getElementById('btn-connect').click();
+        document.getElementById('chk-tos-agree').checked = true;
+        document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+        document.getElementById('btn-tos-accept').click();
+        await sleep(1100);
+
+        document.getElementById('btn-start-run').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 1);
+        assert.equal(sim.getParticipationStake(), 0.5);
+        assert.equal(document.getElementById('btn-stake-remove-coin').disabled, false);
+
+        await sleep(200); // past coin-in debounce
+        document.getElementById('btn-stake-add-coin').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 2);
+        assert.equal(sim.getParticipationStake(), 1);
+        assert.match(document.getElementById('stake-confirm-amount').textContent, /1/);
+        assert.equal(document.getElementById('btn-stake-remove-coin').disabled, false);
+
+        await sleep(200);
+        document.getElementById('btn-stake-remove-coin').click();
+        await sleep(40);
+        assert.equal(sim.participationCoins, 1);
+        assert.equal(sim.getParticipationStake(), 0.5);
+        assert.equal(document.getElementById('btn-stake-remove-coin').disabled, false);
+    } finally {
+        dispose();
+    }
+});
+
+test('Stake confirm applies split feedback and boots the sim run', async () => {
+    const { window, document } = loadApp();
+    const sim = window.web3Simulator;
+    if (window.XRPL_CONFIG) window.XRPL_CONFIG.mode = 'sim';
+
+    document.getElementById('btn-connect').click();
+    document.getElementById('chk-tos-agree').checked = true;
+    document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+    document.getElementById('btn-tos-accept').click();
+    await sleep(1100);
+
+    document.getElementById('btn-start-run').click();
+    await sleep(40);
+    document.getElementById('btn-stake-confirm').click();
+    await sleep(1400);
+    assert.equal(sim.gameActive, true);
     assert.equal(window.gameEngine.isActive, true);
+    assert.equal(sim.sessionStake, 0.5);
+    assert.equal(sim.participationCoins, 0);
+    sim.resetGameState();
+});
+
+test('VDB · Claim & Exit settles an active staked run', async () => {
+    const { window, document } = loadApp();
+    const sim = window.web3Simulator;
+    if (window.XRPL_LIVE_CONFIG) window.XRPL_LIVE_CONFIG.mode = 'sim';
+
+    document.getElementById('btn-connect').click();
+    document.getElementById('chk-tos-agree').checked = true;
+    document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+    document.getElementById('btn-tos-accept').click();
+    await sleep(1100);
+
+    document.getElementById('btn-start-run').click();
+    await sleep(40);
+    document.getElementById('btn-stake-confirm').click();
+    await sleep(1400);
+    assert.equal(sim.gameActive, true);
+    assert.equal(document.getElementById('stance-triad').dataset.stance, 'vdb');
+
+    document.getElementById('btn-claim-exit').click();
+    await sleep(1300);
+    assert.equal(sim.gameActive, false);
+});
+
+test('Node skin palette buttons select purchased skins', async () => {
+    const { window, document } = loadApp();
+    const sim = window.web3Simulator;
+
+    document.getElementById('btn-connect').click();
+    document.getElementById('chk-tos-agree').checked = true;
+    document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+    document.getElementById('btn-tos-accept').click();
+    await sleep(1100);
+
+    document.getElementById('btn-palette-green').click();
+    await sleep(1100);
+    assert.equal(sim.currentPalette, 'green');
+    document.getElementById('btn-palette-pico').click();
+    await sleep(1100);
+    assert.equal(sim.currentPalette, 'pico');
+    document.getElementById('btn-palette-classic').click();
+    assert.equal(sim.currentPalette, 'classic');
 });
 
 test('Payment Channel toggles after wallet connect', async () => {
@@ -162,42 +404,11 @@ test('Payment Channel toggles after wallet connect', async () => {
     channelBtn.click();
     await sleep(1100);
     assert.equal(sim.hasSessionKeys, true);
-    assert.match(channelBtn.textContent, /Close Channel/i);
+    assert.match(channelBtn.textContent, /CHANNEL ON/i);
 
     channelBtn.click();
     assert.equal(sim.hasSessionKeys, false);
-    assert.match(channelBtn.textContent, /Payment Channel/i);
-});
-
-test('Claim XRP & Exit settles an active demo run', async () => {
-    const { window, document } = loadApp();
-    const sim = window.web3Simulator;
-
-    const chk = document.getElementById('chk-bypass-web3');
-    chk.checked = true;
-    chk.dispatchEvent(new window.Event('change', { bubbles: true }));
-    document.getElementById('btn-start-run').click();
-    await sleep(50);
-    assert.equal(sim.gameActive, true);
-
-    document.getElementById('btn-claim-exit').click();
-    await sleep(1300);
-    assert.equal(sim.gameActive, false);
-});
-
-test('Node skin palette buttons select unlocked skins', () => {
-    const { window, document } = loadApp();
-    const sim = window.web3Simulator;
-    const chk = document.getElementById('chk-bypass-web3');
-    chk.checked = true;
-    chk.dispatchEvent(new window.Event('change', { bubbles: true }));
-
-    document.getElementById('btn-palette-green').click();
-    assert.equal(sim.currentPalette, 'green');
-    document.getElementById('btn-palette-pico').click();
-    assert.equal(sim.currentPalette, 'pico');
-    document.getElementById('btn-palette-classic').click();
-    assert.equal(sim.currentPalette, 'classic');
+    assert.match(channelBtn.textContent, /CHANNEL OFF/i);
 });
 
 test('score HUD uses ≤12 ASCII digits', () => {

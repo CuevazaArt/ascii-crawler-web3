@@ -1,6 +1,6 @@
 import { randomUUID, createHmac, timingSafeEqual } from 'node:crypto';
 import {
-    XRPL, roundXrp, splitStake, applyEvents, pendingEarn, settleRun, resolveEpoch
+    XRPL, RECYCLE_SPLIT, roundXrp, normalizeStake, splitStake, applyEvents, pendingEarn, settleRun, resolveEpoch
 } from './economy.mjs';
 import {
     getBags, setBags, currentEpoch, epochBoard, recordEpochScore,
@@ -131,15 +131,17 @@ export function createApp({ cfg, db, ledger, log = console }) {
 
     // ——— Handlers ———
 
-    function postIntent({ account }) {
+    function postIntent({ account, stake: stakeIn }) {
         if (!R_ADDRESS.test(String(account || ''))) throw new ApiError(400, 'invalid r-address');
+        const stake = normalizeStake(stakeIn ?? XRPL.ENTRY_STAKE);
         const intentId = randomUUID();
-        db.prepare('INSERT INTO intents (id, account, created_ms) VALUES (?, ?, ?)')
-            .run(intentId, account, Date.now());
+        db.prepare('INSERT INTO intents (id, account, created_ms, stake) VALUES (?, ?, ?, ?)')
+            .run(intentId, account, Date.now(), stake);
         return {
             intentId,
             operator: ledger.address,
-            stake: XRPL.ENTRY_STAKE,
+            stake,
+            coins: Math.round(stake / XRPL.COIN_XRP),
             network: cfg.network
         };
     }
@@ -157,16 +159,16 @@ export function createApp({ cfg, db, ledger, log = console }) {
             throw new ApiError(409, 'stake tx already consumed by another run');
         }
 
+        const stake = normalizeStake(intent.stake ?? XRPL.ENTRY_STAKE);
         const { deliveredXrp, ledgerIndex } = await ledger.verifyStakeTx({
             txHash: hash,
             account,
             intentId: intent.id,
-            minXrp: XRPL.ENTRY_STAKE
+            minXrp: stake
         });
 
         const now = Date.now();
         const epoch = ensureEpoch(now);
-        const stake = XRPL.ENTRY_STAKE;
         const parts = splitStake(stake);
 
         const bags = getBags(db);
@@ -343,7 +345,9 @@ export function createApp({ cfg, db, ledger, log = console }) {
             }
             setBags(db, result.bags, {
                 paid: deferred ? 0 : result.payout,
-                profit: result.unusedEscrow
+                // Only the ops slice of recycled escrow counts as house profit;
+                // the rest already landed in jackpot/topN/milestones bags.
+                profit: roundXrp(result.unusedEscrow * RECYCLE_SPLIT.dev)
             });
             const best = upsertWalletRun(db, run.account, {
                 score: result.score,
@@ -456,12 +460,27 @@ export function createApp({ cfg, db, ledger, log = console }) {
         return {
             ok: true,
             network: cfg.network,
+            networkLabel: cfg.net?.label || String(cfg.network || '').toUpperCase(),
             operator: ledger.address,
             operatorBalance: balance,
             paid24h: paidInWindow(db, Date.now() - 24 * 60 * 60 * 1000),
             dailyCap: cfg.dailyPayoutCapXrp,
             epoch: currentEpoch(db).id
         };
+    }
+
+    /** Browser-safe balance read (public XRPL HTTP RPC often blocks CORS). */
+    async function getAccount(account) {
+        if (!R_ADDRESS.test(String(account || ''))) throw new ApiError(400, 'invalid r-address');
+        try {
+            const balanceXrp = await ledger.getBalanceXrp(account);
+            return { account, balanceXrp, activated: balanceXrp > 0 };
+        } catch (e) {
+            if (String(e?.data?.error || e?.message).includes('actNotFound')) {
+                return { account, balanceXrp: 0, activated: false };
+            }
+            throw e;
+        }
     }
 
     const checkAdmin = (token) => {
@@ -490,6 +509,7 @@ export function createApp({ cfg, db, ledger, log = console }) {
         postSettle,
         getLeaderboard,
         getHealth,
+        getAccount,
         adminPending,
         adminApprove,
         ensureEpoch,

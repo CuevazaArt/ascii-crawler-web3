@@ -9,6 +9,8 @@
 
 export const XRPL = {
     ENTRY_STAKE: 0.5,
+    COIN_XRP: 0.5,          // one arcade coin-in
+    MAX_STAKE_COINS: 10,    // max stacked participation (5 XRP)
     DROP_REWARD: 0.0005,
     EXPLOIT_SLASH: 0.01,
     STAKE_SPLIT: {
@@ -54,8 +56,51 @@ export const CAPS = {
     MAX_LEVEL: 3
 };
 
+/**
+ * Unpaid earn-escrow (early Claim, under-harvest, sub-10s forfeit) is recycled into
+ * prize bags for legitimate / participatory players. Only a thin ops cut → dev.
+ * Sum must be 1.
+ */
+export const RECYCLE_SPLIT = {
+    jackpot: 0.50,
+    topN: 0.25,
+    milestones: 0.15,
+    dev: 0.10
+};
+
+/** Fold unpaid escrow into prize pools (mutates/returns bags). */
+export function recycleUnpaidEscrow(bagsIn, amount) {
+    const bags = { ...bagsIn };
+    const amt = roundXrp(Math.max(0, Number(amount) || 0));
+    if (amt <= 0) return bags;
+    const s = RECYCLE_SPLIT;
+    bags.jackpot = roundXrp((bags.jackpot || 0) + amt * s.jackpot);
+    bags.topN = roundXrp((bags.topN || 0) + amt * s.topN);
+    bags.milestones = roundXrp((bags.milestones || 0) + amt * s.milestones);
+    bags.dev = roundXrp((bags.dev || 0) + amt * s.dev);
+    return bags;
+}
+
 export function roundXrp(n) {
     return Math.round(Number(n) * 1e9) / 1e9;
+}
+
+/**
+ * Normalize a participation stake to a whole number of coins.
+ * Defaults to one coin; clamps to MAX_STAKE_COINS.
+ */
+export function normalizeStake(raw) {
+    const coin = XRPL.COIN_XRP || XRPL.ENTRY_STAKE;
+    const max = (XRPL.MAX_STAKE_COINS || 10) * coin;
+    let n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0) n = coin;
+    // Snap to nearest coin multiple (prefer floor so we never over-charge intent)
+    const coins = Math.max(1, Math.min(
+        XRPL.MAX_STAKE_COINS || 10,
+        Math.round(n / coin)
+    ));
+    const stake = roundXrp(coins * coin);
+    return Math.min(stake, max);
 }
 
 /** Split one stake into prize-bag deltas (bookkeeping; funds sit in the operator account). */
@@ -140,7 +185,7 @@ export function plausibleScore(counters) {
  *   bags {jackpot, topN, milestones, reserve, dev},
  *   milestonesClaimed (Set of ids already claimed globally)
  * @returns {object} { payout, due, boost, unusedEscrow, score, drops, relicCount,
- *                     milestones: [{id,label,prize}], bagDeltas {reserve, dev, milestones} }
+ *                     milestones: [{id,label,prize}], bags }
  */
 export function settleRun(p) {
     const stake = p.stake ?? XRPL.ENTRY_STAKE;
@@ -174,12 +219,11 @@ export function settleRun(p) {
     }
     due = roundXrp(Math.min(due, maxPayout));
 
-    // House edge: whatever skill did not reclaim from escrow
-    const unusedEscrow = roundXrp(Math.max(0, escrow - earned));
-    if (unusedEscrow > 0) {
-        bags.reserve = roundXrp(bags.reserve + unusedEscrow * 0.6);
-        bags.dev = roundXrp(bags.dev + unusedEscrow * 0.4);
-    }
+    // Escrow not paid to this player (under-harvest OR early-exit forfeit) →
+    // prize pools for legitimate participants; thin ops cut only (see RECYCLE_SPLIT).
+    const escrowPaidToPlayer = ranLongEnough ? earned : 0;
+    const unusedEscrow = roundXrp(Math.max(0, escrow - escrowPaidToPlayer));
+    Object.assign(bags, recycleUnpaidEscrow(bags, unusedEscrow));
 
     // First-to-hit milestones from the milestones bag
     const milestones = [];

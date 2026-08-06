@@ -257,6 +257,22 @@ class LeakRunnerAudioEngine {
         });
     }
 
+    /** Arcade coin-in — bright reward sting when stacking stake participation. */
+    playCoinIn() {
+        this.resume();
+        const t = this.ctx.currentTime;
+        this.playNoise(0.04, 0.08, t);
+        [880, 1174.7, 1396.9, 1760].forEach((f, i) => {
+            this.playTone(f, 'square', 0.09, 0.12 - i * 0.015, 0, t + 0.03 + i * 0.07);
+        });
+        this.playTone(2093, 'triangle', 0.16, 0.08, 0, t + 0.32);
+    }
+
+    /** Alias — stake participation reward. */
+    playReward() {
+        this.playCoinIn();
+    }
+
     playClick() {
         this.resume();
         this.playTone(880, 'sine', 0.05, 0.1, 440);

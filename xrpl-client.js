@@ -16,14 +16,32 @@
 
     const CFG = window.XRPL_LIVE_CONFIG || null;
 
+    /** Collapse Xaman / env / config labels to MAINNET | TESTNET | DEVNET | null. */
+    function normalizeNetwork(raw) {
+        const s = String(raw || '').trim().toUpperCase();
+        if (!s) return null;
+        if (s.includes('TEST') || s === 'ALTNET') return 'TESTNET';
+        if (s.includes('DEV')) return 'DEVNET';
+        if (s.includes('MAIN') || s === 'LIVENET') return 'MAINNET';
+        return s;
+    }
+
     class XrplLiveClient {
         constructor(cfg) {
             this.cfg = cfg;
             this.pkce = null;
             this.sdk = null;
             this.account = null;
+            this.xamanNetwork = null;
+            this.operatorNetwork = null; // from /api/health
+            this.railsOk = false;
+            this.railsIssue = null;
             this._activePayloadUuid = null;
             this._modalCancel = null;
+        }
+
+        normalizeNetwork(raw) {
+            return normalizeNetwork(raw);
         }
 
         net() {
@@ -49,8 +67,82 @@
             return this.net()?.label || 'TESTNET';
         }
 
+        expectedNetwork() {
+            return normalizeNetwork(this.cfg?.network || this.networkLabel());
+        }
+
         isMainnet() {
-            return this.cfg?.network === 'mainnet';
+            return this.expectedNetwork() === 'MAINNET';
+        }
+
+        isOperatorAccount(account) {
+            const op = String(this.cfg?.operatorAddress || '');
+            return !!(account && op && account === op);
+        }
+
+        /**
+         * Align client config with the operator API (source of truth for
+         * network + hot-wallet address). Call once at live boot.
+         */
+        async syncWithOperator() {
+            this.railsOk = false;
+            this.railsIssue = null;
+            if (!this.cfg?.apiBase) {
+                this.railsIssue = 'no operator apiBase configured';
+                return { ok: false, issue: this.railsIssue };
+            }
+            let health;
+            try {
+                health = await this.api('/api/health');
+            } catch (e) {
+                this.railsIssue = e?.message || 'operator API unreachable';
+                return { ok: false, issue: this.railsIssue };
+            }
+            const serverNet = normalizeNetwork(health.network || health.networkLabel);
+            const clientNet = this.expectedNetwork();
+            this.operatorNetwork = serverNet;
+            if (serverNet && clientNet && serverNet !== clientNet) {
+                this.railsIssue =
+                    `client network ${clientNet} ≠ operator ${serverNet} — set xrpl-config.js network and XRPL_NETWORK to the same value`;
+                return { ok: false, issue: this.railsIssue, health };
+            }
+            if (health.operator && this.cfg.operatorAddress
+                && health.operator !== this.cfg.operatorAddress) {
+                // Server seed wins — wrong Destination would make every stake fail verify.
+                this.cfg.operatorAddress = health.operator;
+            } else if (health.operator && !this.cfg.operatorAddress) {
+                this.cfg.operatorAddress = health.operator;
+            }
+            this.railsOk = true;
+            return { ok: true, health, network: serverNet || clientNet };
+        }
+
+        /** Xaman app must sit on the same rail the game + operator use. */
+        walletNetworkMatches() {
+            const wallet = normalizeNetwork(this.xamanNetwork);
+            const expect = this.expectedNetwork();
+            if (!wallet || !expect) return true; // unknown → don't hard-block
+            return wallet === expect;
+        }
+
+        /**
+         * Gate live stake / resume. Throws Error with a player-facing message.
+         */
+        assertStakeAllowed(account) {
+            if (!this.railsOk) {
+                throw new Error(this.railsIssue || 'operator rails not aligned — check API + network config');
+            }
+            if (this.isOperatorAccount(account)) {
+                throw new Error('cannot stake with the operator hot wallet — connect a separate player account');
+            }
+            const wallet = normalizeNetwork(this.xamanNetwork);
+            const expect = this.expectedNetwork();
+            if (wallet && expect && wallet !== expect) {
+                throw new Error(
+                    `Xaman is on ${wallet} but this game uses ${expect}. `
+                    + `In Xaman: Settings → Advanced → Node → ${expect}, then Disconnect and Connect again.`
+                );
+            }
         }
 
         explorerTx(hash) {
@@ -82,8 +174,16 @@
             if (account && state?.sdk) {
                 this.sdk = state.sdk;
                 this.account = account;
+                this.xamanNetwork = String(
+                    state?.me?.network_type || state?.me?.networkType || ''
+                ).toUpperCase() || null;
             }
             return this.account;
+        }
+
+        /** Xaman app network label (MAINNET / TESTNET / …) when known. */
+        walletNetwork() {
+            return this.xamanNetwork || null;
         }
 
         /** Interactive sign-in (opens the Xaman popup / app hand-off). */
@@ -120,9 +220,10 @@
             try { this.ensurePkce().logout(); } catch (_) { /* ignore */ }
             this.sdk = null;
             this.account = null;
+            this.xamanNetwork = null;
         }
 
-        // ——— Ledger reads (public JSON-RPC, no SDK) ———
+        // ——— Ledger reads ———
 
         async rpc(method, params) {
             const res = await fetch(this.net().rpc, {
@@ -135,8 +236,25 @@
             return data?.result || {};
         }
 
-        /** { balanceXrp } or null when the account is not activated yet. */
+        /**
+         * { balanceXrp } or null when the account is not activated yet.
+         * Prefer the operator API proxy — Ripple's public HTTP RPC blocks browser CORS
+         * ("Failed to fetch"), which made a linked wallet look broken (balance "—").
+         */
         async getAccountInfo(account) {
+            if (this.cfg?.apiBase) {
+                try {
+                    const data = await this.api(
+                        `/api/account?account=${encodeURIComponent(account)}`
+                    );
+                    if (data && data.activated === false && !(Number(data.balanceXrp) > 0)) {
+                        return null;
+                    }
+                    return { balanceXrp: Number(data.balanceXrp) || 0 };
+                } catch (_) {
+                    /* fall through to direct RPC */
+                }
+            }
             const r = await this.rpc('account_info', {
                 account,
                 ledger_index: 'validated'

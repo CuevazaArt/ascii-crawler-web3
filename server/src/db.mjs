@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS intents (
     id TEXT PRIMARY KEY,
     account TEXT NOT NULL,
     created_ms INTEGER NOT NULL,
-    used INTEGER NOT NULL DEFAULT 0
+    used INTEGER NOT NULL DEFAULT 0,
+    stake REAL NOT NULL DEFAULT 0.5
 );
 CREATE TABLE IF NOT EXISTS runs (
     id TEXT PRIMARY KEY,
@@ -99,6 +100,10 @@ export function openDb(file, { epochMs = XRPL.EPOCH_MS, now = Date.now() } = {})
     const db = new DatabaseSync(file);
     db.exec('PRAGMA journal_mode = WAL;');
     db.exec(SCHEMA);
+    // Migrate older DBs that lack intents.stake
+    try {
+        db.exec('ALTER TABLE intents ADD COLUMN stake REAL NOT NULL DEFAULT 0.5');
+    } catch (_) { /* column already exists */ }
 
     // Seed singletons
     const bags = db.prepare('SELECT * FROM bags WHERE id = 1').get();

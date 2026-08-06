@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Leak Runner — XRPL arcade demo</title>
     <meta name="description" content="Retro XRPL arcade: the penguin guardians defend the Securithon Grid from the rogue vault-core you pilot. Stake XRP, reclaim by skill, scores committed on-ledger.">
     <link rel="icon" type="image/png" href="docs/xaman-app-icon.png">
@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Press+Start+2P&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css?v=69">
+    <link rel="stylesheet" href="style.css?v=96">
 </head>
 <body>
     <div class="bg-atmosphere" aria-hidden="true"></div>
@@ -34,18 +34,10 @@
                     <span class="retro-title neon-text">LEAK RUNNER</span>
                     <span class="logo-tagline">Securithon Grid · boot a Node · leak the ledger</span>
                 </div>
-                <span class="web3-badge" title="Educational XRPL economy demo">
-                    <span class="web3-badge-dot" aria-hidden="true"></span>
-                    XRPL DEMO
-                </span>
             </div>
 
             <div class="header-tools wallet-bar">
                 <div class="header-chip-tray" role="group" aria-label="Session tools">
-                    <label class="bypass-toggle header-demo-toggle" title="Play without XRPL / Xaman">
-                        <input type="checkbox" id="chk-bypass-web3">
-                        <span class="toggle-label">Demo</span>
-                    </label>
                     <a class="header-chip btn-legal" id="btn-legal-docs" href="docs/legal.html" target="_blank" rel="noopener noreferrer">
                         <i class="fa-solid fa-scale-balanced" aria-hidden="true"></i>
                         <span>Legal</span>
@@ -54,6 +46,13 @@
                         <i class="fa-brands fa-github" aria-hidden="true"></i>
                         <span>GitHub</span>
                     </a>
+                </div>
+                <div class="header-rail-status" aria-live="polite">
+                    <span class="web3-badge" title="Live XRPL — stake required to play">
+                        <span class="web3-badge-dot" aria-hidden="true"></span>
+                        LIVE · STAKE TO PLAY
+                    </span>
+                    <span class="header-rail-hint">Connect Xaman · every run costs XRP · no free boots</span>
                 </div>
                 <div class="wallet-cluster">
                     <div class="wallet-info" id="wallet-info">
@@ -119,7 +118,7 @@
         </div>
 
         <main class="main-content lobby-columns" id="lobby-main">
-            <!-- Left 30%: menus / info -->
+            <!-- Left ~24%: menus / info -->
             <aside class="sidebar-panel lobby-col lobby-col-side">
                 <div class="card stats-card">
                     <div class="stats-header">
@@ -238,12 +237,12 @@
                 <div class="card logs-card">
                     <h2 class="card-title"><i class="fa-solid fa-water text-secondary"></i> LEDGER LOGS</h2>
                     <div class="logs-container" id="logs-container">
-                        <div class="log-entry system">Grid idle · awaiting Xaman or Demo Mode to boot a Node.</div>
+                        <div class="log-entry system">Grid idle · connect Xaman and stake XRP to boot a Node.</div>
                     </div>
                 </div>
             </aside>
 
-            <!-- Right 70%: main game / lobby start -->
+            <!-- Right ~76%: main game / lobby start -->
             <section class="game-panel lobby-col lobby-col-main">
                 <div class="terminal-container">
                     <div class="terminal-header">
@@ -253,11 +252,26 @@
                             <span class="dot green"></span>
                         </div>
                         <div class="terminal-title">SECURITHON GRID — SECTOR <span id="lbl-level">1 · Cold Start</span></div>
+                        <a class="terminal-api-btn" id="btn-api-panel" href="http://127.0.0.1:8787/" target="_blank" rel="noopener noreferrer" title="Operator API dashboard">
+                            <i class="fa-solid fa-gauge-high" aria-hidden="true"></i>
+                            <span>API</span>
+                        </a>
+                        <button type="button" class="terminal-fs-btn" id="btn-fullscreen" title="Pantalla completa" aria-label="Pantalla completa" aria-pressed="false">
+                            <i class="fa-solid fa-expand" aria-hidden="true"></i>
+                        </button>
                         <div class="fps-counter">-- FPS</div>
                     </div>
                     
                     <div class="terminal-screen" id="terminal-screen">
                         <div class="game-stage" id="game-stage" style="display: none;">
+                            <div class="phase-banner" id="phase-banner" data-phase="idle" aria-live="assertive">
+                                <span class="phase-kicker" id="phase-kicker">MOMENT</span>
+                                <span class="phase-title" id="phase-title">STANDBY</span>
+                                <span class="phase-detail" id="phase-detail">Boot a Node to enter the Grid</span>
+                                <span class="phase-meter" id="phase-meter" hidden>
+                                    <span class="phase-meter-fill" id="phase-meter-fill"></span>
+                                </span>
+                            </div>
                             <div class="ingame-hud" id="ingame-hud" aria-live="polite">
                                 <div class="hud-chip">
                                     <span class="hud-label">SCORE</span>
@@ -276,24 +290,124 @@
                                     <span class="hud-value text-secondary" id="hud-tier">0.000 XRP</span>
                                 </div>
                             </div>
+                            <div class="stake-ticker" id="stake-ticker" aria-live="polite" hidden>
+                                <div class="stake-ticker-row">
+                                    <span class="stake-ticker-in">IN <strong id="stake-ticker-paid">0.50</strong> XRP</span>
+                                    <span class="stake-ticker-pct" id="stake-ticker-pct">0%</span>
+                                </div>
+                                <div class="stake-ticker-track" aria-label="Recuperación del stake">
+                                    <div class="stake-ticker-fill" id="stake-ticker-fill"></div>
+                                    <span class="stake-ticker-cap-mark" aria-hidden="true"></span>
+                                </div>
+                                <div class="stake-ticker-row stake-ticker-outcomes">
+                                    <span class="stake-ticker-outcome stake-ticker-vdb">VDB <strong id="stake-ticker-vdb">0.0000</strong></span>
+                                    <span class="stake-ticker-outcome stake-ticker-net" id="stake-ticker-net-wrap">NET <strong id="stake-ticker-net">−0.50</strong></span>
+                                    <span class="stake-ticker-outcome stake-ticker-lose">LOSE <strong id="stake-ticker-lose">0.0000</strong></span>
+                                </div>
+                            </div>
                             <div class="canvas-stack">
                                 <canvas id="game-canvas" width="580" height="340"></canvas>
                                 <div class="fx-bursts" id="fx-bursts" aria-hidden="true"></div>
                             </div>
+                            <div class="bet-board" id="bet-board" aria-live="polite">
+                                <div class="bet-head">
+                                    <span class="bet-kicker">PLAY PAID · LEVEL CLEAR</span>
+                                    <span class="bet-odds" id="bet-odds">—</span>
+                                </div>
+                                <div class="bet-clear-track" aria-label="Level clear progress">
+                                    <div class="bet-clear-fill" id="bet-clear-fill"></div>
+                                    <span class="bet-clear-label" id="bet-clear-label">0% · SEAL</span>
+                                </div>
+                                <div class="bet-cols">
+                                    <div class="bet-col bet-if-clear" id="bet-if-clear">
+                                        <span class="bet-if-tag">SI PASAS</span>
+                                        <span class="bet-if-body" id="bet-if-clear-body">+500 · next sector</span>
+                                    </div>
+                                    <div class="bet-col bet-if-vdb" id="bet-if-vdb">
+                                        <span class="bet-if-tag">SI VDB AHORA</span>
+                                        <span class="bet-if-body" id="bet-if-vdb-body">+0.0000 XRP</span>
+                                    </div>
+                                    <div class="bet-col bet-if-lose" id="bet-if-lose">
+                                        <span class="bet-if-tag">SI PIERDES</span>
+                                        <span class="bet-if-body" id="bet-if-lose-body">scraps · pools eat rest</span>
+                                    </div>
+                                </div>
+                                <p class="bet-pulse" id="bet-pulse">You already paid to be here — now prove you clear the sector before the swarm does.</p>
+                            </div>
+                            <div class="stance-triad" id="stance-triad" data-stance="vdb" aria-label="Run positions: Win, VDB, Lose">
+                                <div class="stance-card stance-win" data-stance="win" id="stance-win">
+                                    <span class="stance-tag">WIN</span>
+                                    <span class="stance-name">PUSH</span>
+                                    <span class="stance-blurb" id="stance-win-blurb">Seal sectors · reclaim hard</span>
+                                </div>
+                                <div class="stance-card stance-vdb" data-stance="vdb" id="stance-vdb">
+                                    <span class="stance-tag">VDB</span>
+                                    <span class="stance-name">BAIL</span>
+                                    <span class="stance-blurb" id="stance-vdb-blurb">Claim harvest · leave alive</span>
+                                    <span class="stance-pending" id="stance-pending">+0.0000 XRP</span>
+                                </div>
+                                <div class="stance-card stance-lose" data-stance="lose" id="stance-lose">
+                                    <span class="stance-tag">LOSE</span>
+                                    <span class="stance-name">BREACH</span>
+                                    <span class="stance-blurb" id="stance-lose-blurb">Swarm ends you · settle scraps</span>
+                                </div>
+                            </div>
                         </div>
                         
+                        <div class="run-recap" id="run-recap" hidden aria-live="polite">
+                            <div class="run-recap-head">
+                                <span class="run-recap-kicker">ÚLTIMA PARTIDA</span>
+                                <span class="run-recap-exit" id="run-recap-exit">—</span>
+                            </div>
+                            <div class="run-recap-econ">
+                                <div class="run-recap-cell">
+                                    <span class="run-recap-lab">Aportaste</span>
+                                    <strong class="run-recap-val" id="run-recap-stake">0.0000 XRP</strong>
+                                </div>
+                                <div class="run-recap-cell">
+                                    <span class="run-recap-lab">Recibiste</span>
+                                    <strong class="run-recap-val" id="run-recap-payout">0.0000 XRP</strong>
+                                </div>
+                                <div class="run-recap-cell">
+                                    <span class="run-recap-lab">Neto</span>
+                                    <strong class="run-recap-val" id="run-recap-net">−0.0000 XRP</strong>
+                                </div>
+                            </div>
+                            <div class="run-recap-foot">
+                                <span><i class="fa-regular fa-clock"></i> <span id="run-recap-time">0s</span></span>
+                                <span id="run-recap-actions">0 drops · sector 1</span>
+                            </div>
+                        </div>
+
                         <div class="start-screen-prompt" id="start-prompt">
                             <div class="start-banner" id="start-banner" aria-live="polite">
                                 <div class="start-banner-track" id="start-banner-track"></div>
                                 <div class="start-banner-dots" id="start-banner-dots"></div>
                             </div>
                             <p class="blink text-primary">Stake 0.5 XRP · Boot the Node</p>
-                            <p class="subtext">Harvest Drops · seize Relics · slash Exploits · settle on Claim.</p>
-                            <div class="start-action-block">
-                                <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game">
-                                    <span class="arcade-start-label">START</span>
-                                    <span class="arcade-start-key">PRESS <kbd>S</kbd></span>
+                            <div class="start-wallet-block" id="start-wallet-block" hidden>
+                                <p id="start-wallet-block-msg"></p>
+                                <button type="button" class="btn btn-fix-wallet" id="btn-fix-wallet">
+                                    <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+                                    Disconnect · connect player wallet
                                 </button>
+                            </div>
+                            <p class="subtext">Connect Xaman · stake XRP · <strong>your payment is the game</strong>. Three doors: <strong>WIN</strong> · <strong>VDB</strong> · <strong>LOSE</strong>.</p>
+                            <div class="start-action-block">
+                                <div class="start-stake-row">
+                                    <button type="button" class="btn btn-stake-adj btn-stake-down" id="btn-lobby-stake-remove" data-stake-remove title="Remove 0.5 XRP from stake" aria-label="Decrease stake by 0.5 XRP" disabled>
+                                        <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                                        <span>0.5</span>
+                                    </button>
+                                    <button type="button" class="arcade-start-btn" id="btn-arcade-start" aria-label="Start game with 0.5 XRP">
+                                        <span class="arcade-start-label">START WITH <span id="arcade-start-stake">0.5</span> XRP</span>
+                                        <span class="arcade-start-key">PRESS <kbd>S</kbd> · CONFIRM</span>
+                                    </button>
+                                    <button type="button" class="btn btn-stake-adj btn-stake-up" id="btn-lobby-stake-add" data-stake-add title="Add 0.5 XRP to stake" aria-label="Increase stake by 0.5 XRP">
+                                        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                        <span>0.5</span>
+                                    </button>
+                                </div>
                                 <div class="controls-guide">
                                     <p class="controls-keys">
                                         <kbd>↑</kbd> <kbd>←</kbd> <kbd>↓</kbd> <kbd>→</kbd>
@@ -310,17 +424,58 @@
                     </div>
                 </div>
 
-                <div class="action-bar">
-                    <button class="btn btn-success" id="btn-start-run" disabled>
-                        <i class="fa-solid fa-bolt"></i> Stake 0.5 XRP · Boot Node
-                    </button>
-                    <button class="btn btn-warning" id="btn-claim-exit" disabled>
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Claim XRP &amp; Exit
-                    </button>
-                    <div class="bypass-control-group">
-                        <button class="btn btn-danger" id="btn-session-keys" disabled style="width: 100%;">
-                            <i class="fa-solid fa-link"></i> Payment Channel
-                        </button>
+                <div class="action-rail" aria-label="Controles de run">
+                    <p class="action-rail-kicker">FLUJO · COIN-IN → JUGAR → VDB</p>
+                    <div class="action-bar">
+                        <div class="action-group action-group-coinin">
+                            <span class="action-group-step">1</span>
+                            <span class="action-group-label">Entrar</span>
+                            <div class="coinin-adj-row">
+                                <button type="button" class="btn btn-stake-adj btn-stake-down" id="btn-rail-stake-remove" data-stake-remove title="Remove 0.5 XRP" aria-label="Decrease stake by 0.5 XRP" disabled>
+                                    <i class="fa-solid fa-minus" aria-hidden="true"></i>
+                                    <span>0.5</span>
+                                </button>
+                                <button type="button" class="btn btn-action btn-coinin" id="btn-start-run">
+                                    <span class="btn-action-stack">
+                                        <i class="fa-solid fa-coins" aria-hidden="true"></i>
+                                        <span class="btn-action-copy">
+                                            <span class="btn-action-title">BOOT NODE</span>
+                                            <span class="btn-action-sub">Pay 0.5 XRP · coin-in</span>
+                                        </span>
+                                    </span>
+                                </button>
+                                <button type="button" class="btn btn-stake-adj btn-stake-up" id="btn-rail-stake-add" data-stake-add title="Add 0.5 XRP" aria-label="Increase stake by 0.5 XRP">
+                                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                                    <span>0.5</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="action-group action-group-vdb">
+                            <span class="action-group-step">2</span>
+                            <span class="action-group-label">Salir vivo</span>
+                            <button type="button" class="btn btn-action btn-vdb" id="btn-claim-exit" disabled title="VDB — Voluntary Departure Bail: leave with accrued harvest">
+                                <span class="btn-action-stack">
+                                    <i class="fa-solid fa-door-open" aria-hidden="true"></i>
+                                    <span class="btn-action-copy">
+                                        <span class="btn-action-title">VDB · CLAIM</span>
+                                        <span class="btn-action-sub" id="btn-vdb-hint">Cobra harvest · deja vivo</span>
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
+                        <div class="action-group action-group-channel">
+                            <span class="action-group-step"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>
+                            <span class="action-group-label">Rail XRPL</span>
+                            <button type="button" class="btn btn-action btn-channel is-off" id="btn-session-keys" disabled>
+                                <span class="btn-action-stack">
+                                    <i class="fa-solid fa-link-slash" aria-hidden="true"></i>
+                                    <span class="btn-action-copy">
+                                        <span class="btn-action-title">CHANNEL</span>
+                                        <span class="btn-action-sub" id="btn-channel-hint">Off · sim batch</span>
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -488,6 +643,34 @@
                 <span class="go-burned">BURNED</span>
             </p>
             <p class="go-subtext subtext">Stake fresh XRP from Xaman to mint a new Node and rejoin the Securithon Grid.</p>
+            <div class="run-recap run-recap-modal" id="go-run-recap" hidden>
+                <div class="run-recap-head">
+                    <span class="run-recap-kicker">RESUMEN RUN</span>
+                    <span class="run-recap-exit" id="go-exit">—</span>
+                </div>
+                <div class="run-recap-econ">
+                    <div class="run-recap-cell">
+                        <span class="run-recap-lab">Aportaste</span>
+                        <strong class="run-recap-val" id="go-stake">0.0000 XRP</strong>
+                    </div>
+                    <div class="run-recap-cell">
+                        <span class="run-recap-lab">Recibiste</span>
+                        <strong class="run-recap-val" id="go-payout">0.0000 XRP</strong>
+                    </div>
+                    <div class="run-recap-cell">
+                        <span class="run-recap-lab">Neto</span>
+                        <strong class="run-recap-val" id="go-net">−0.0000 XRP</strong>
+                    </div>
+                </div>
+                <div class="run-recap-foot">
+                    <span><i class="fa-regular fa-clock"></i> <span id="go-time">0s</span></span>
+                    <span id="go-actions">0 drops · sector 1</span>
+                </div>
+            </div>
+            <div class="go-coach" id="go-coach" aria-live="polite">
+                <p class="go-coach-kicker"><i class="fa-solid fa-lightbulb"></i> CONSEJO</p>
+                <p class="go-coach-tip" id="go-coach-tip">Cosecha drops, usa AUDIT (=) para slashes, y haz VDB vivo antes de uptime 0.</p>
+            </div>
             <div class="score-summary go-scoreboard">
                 <p class="go-record" id="lbl-record-flag" style="display:none">★ NEW LEDGER RECORD</p>
                 <div class="go-stat-row">
@@ -511,6 +694,47 @@
         </div>
     </div>
 
+    <!-- Stake consequences — confirm before consuming 0.5 XRP -->
+    <div class="modal-overlay" id="stake-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="stake-confirm-title">
+        <div class="modal-content stake-confirm-content">
+            <div class="stake-confirm-body">
+                <h2 id="stake-confirm-title" class="tos-title">
+                    <i class="fa-solid fa-bolt text-warning"></i>
+                    Stake <span id="stake-confirm-amount">0.5</span> XRP
+                </h2>
+                <p class="tos-lead" id="stake-confirm-lead">
+                    This is an arcade. You identify with your wallet and participate — the stake is not a fee on top of the game; it is the game.
+                </p>
+                <div class="stake-split-panel" id="stake-split-panel" aria-label="Stake split"></div>
+                <ul class="tos-points stake-consequence-list">
+                    <li><strong>Pay = play</strong> — the green button boots your Node. No lump-sum refund; reclaim only by skill inside the run.</li>
+                    <li><strong>Identity</strong> — your r-address is the player. Score, VDB, and pools attach to who showed up and paid in.</li>
+                    <li><strong>Participation</strong> — WIN / VDB / LOSE under swarm pressure. That tension is the product.</li>
+                    <li><strong>VDB</strong> — leave alive with harvest; unpaid escrow recycles to jackpot / Top-N / milestones (thin ops cut).</li>
+                    <li><strong>Exit under 10 seconds</strong> — payout 0; full earn escrow feeds those prize pools.</li>
+                    <li><strong>Death</strong> — settle scraps; leftover still recycles. No soft undo mid-swarm.</li>
+                    <li id="stake-confirm-network-note">Live rails: review the Xaman Payment before signing. Irreversible on-ledger.</li>
+                </ul>
+            </div>
+            <div class="tos-actions stake-confirm-actions">
+                <button type="button" class="btn btn-success btn-stake-boot" id="btn-stake-confirm">
+                    <i class="fa-solid fa-play"></i> BOOT NODE · Pay 0.5 XRP
+                </button>
+                <div class="stake-confirm-secondary">
+                    <button type="button" class="btn btn-primary" id="btn-stake-remove-coin" data-stake-remove title="Remove 0.5 XRP from the stack" disabled>
+                        <i class="fa-solid fa-minus"></i> −0.5
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-stake-add-coin" data-stake-add title="Add another 0.5 XRP coin-in">
+                        <i class="fa-solid fa-plus"></i> +0.5
+                    </button>
+                    <button type="button" class="btn btn-danger" id="btn-stake-cancel">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Xaman sign-request modal (QR / deep link) — used only in live mode -->
     <div class="modal-overlay" id="xaman-sign-modal" role="dialog" aria-modal="true" aria-labelledby="xaman-sign-title">
         <div class="modal-content xaman-sign-content">
@@ -527,12 +751,12 @@
         </div>
     </div>
 
-    <script src="xrpl-config.js?v=4"></script>
+    <script src="xrpl-config.js?v=81"></script>
     <script src="https://xumm.app/assets/cdn/xumm-oauth2-pkce.min.js"></script>
-    <script src="xrpl-client.js?v=2"></script>
-    <script src="score-format.js?v=45"></script>
-    <script src="audio.js?v=60"></script>
-    <script src="blockchain.js?v=73"></script>
-    <script src="game.js?v=66"></script>
+    <script src="xrpl-client.js?v=81"></script>
+    <script src="score-format.js?v=81"></script>
+    <script src="audio.js?v=81"></script>
+    <script src="blockchain.js?v=96"></script>
+    <script src="game.js?v=96"></script>
 </body>
 </html>

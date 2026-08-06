@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    XRPL, RELICS, splitStake, applyEvents, pendingEarn, plausibleScore,
+    XRPL, RELICS, MILESTONES, splitStake, normalizeStake, applyEvents, pendingEarn, plausibleScore,
     settleRun, resolveEpoch, roundXrp
 } from '../server/src/economy.mjs';
+
+test('normalizeStake snaps to coin multiples and clamps', () => {
+    assert.equal(normalizeStake(0.5), 0.5);
+    assert.equal(normalizeStake(1), 1);
+    assert.equal(normalizeStake(1.4), 1.5);
+    assert.equal(normalizeStake(0), 0.5);
+    assert.equal(normalizeStake(99), roundXrp(XRPL.MAX_STAKE_COINS * XRPL.COIN_XRP));
+});
 
 const NOW = 1_800_000_000_000;
 const STARTED = NOW - 120_000; // 2 minutes of play
@@ -61,7 +69,7 @@ test('plausibleScore bounds what a client may claim', () => {
     assert.equal(plausibleScore(c), 3600);
 });
 
-test('settleRun: skill earn is paid from escrow; house keeps the rest', () => {
+test('settleRun: skill earn is paid from escrow; unpaid recycles to prize pools', () => {
     const res = settleRun({
         stake: 0.5,
         escrow: 0.35,
@@ -69,15 +77,18 @@ test('settleRun: skill earn is paid from escrow; house keeps the rest', () => {
         reportedScore: 700,
         startedMs: STARTED,
         nowMs: NOW,
-        bags: bags({ milestones: 0 }),                 // no milestone noise
-        milestonesClaimed: new Set()
+        bags: bags({ milestones: 0 }),
+        milestonesClaimed: new Set(MILESTONES.map((m) => m.id)) // isolate recycle math
     });
     assert.equal(res.due, 0.05);
     assert.equal(res.payout, 0.05);
     assert.equal(res.unusedEscrow, 0.3);
-    // unused escrow → reserve 60% / dev 40%
-    assert.equal(res.bags.reserve, roundXrp(1 + 0.3 * 0.6));
-    assert.equal(res.bags.dev, roundXrp(0 + 0.3 * 0.4));
+    // unpaid → jackpot 50% / topN 25% / milestones 15% / ops(dev) 10%
+    assert.equal(res.bags.jackpot, roundXrp(2 + 0.3 * 0.50));
+    assert.equal(res.bags.topN, roundXrp(1 + 0.3 * 0.25));
+    assert.equal(res.bags.milestones, roundXrp(0 + 0.3 * 0.15));
+    assert.equal(res.bags.dev, roundXrp(0 + 0.3 * 0.10));
+    assert.equal(res.bags.reserve, 1); // reserve untouched by recycle
 });
 
 test('settleRun: payout ceiling is 1.1× the stake, boost included, score clamped', () => {
@@ -147,7 +158,10 @@ test('settleRun: runs shorter than 10 s pay nothing (anti spam-stake)', () => {
         milestonesClaimed: new Set()
     });
     assert.equal(res.payout, 0);
-    assert.equal(res.unusedEscrow, roundXrp(0.35 - 0.01)); // earn still counted as used
+    // Early forfeit: entire escrow recycles to prize pools (player got due=0)
+    assert.equal(res.unusedEscrow, 0.35);
+    assert.equal(res.bags.jackpot, roundXrp(2 + 0.35 * 0.50));
+    assert.equal(res.bags.dev, roundXrp(0 + 0.35 * 0.10));
 });
 
 test('resolveEpoch pays 50/20/15 of the jackpot and splits topN across top-5', () => {

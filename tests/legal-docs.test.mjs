@@ -51,13 +51,14 @@ test('README links legal docs', () => {
     assert.match(readme, /LICENSE/);
 });
 
-test('index.html wires Legal link, GitHub repo, Demo Mode header, and ToS modal', () => {
+test('index.html wires Legal link, GitHub repo, and ToS modal (no demo toggle)', () => {
     const html = readRoot('index.html');
     assert.match(html, /id="btn-legal-docs"/);
     assert.match(html, /href="docs\/legal\.html"/);
     assert.match(html, /id="btn-github-repo"/);
     assert.match(html, /github\.com\/CuevazaArt\/ascii-crawler-web3/);
-    assert.match(html, /header-demo-toggle/);
+    assert.doesNotMatch(html, /chk-bypass-web3/);
+    assert.doesNotMatch(html, /header-demo-toggle/);
     assert.match(html, /id="tos-modal"/);
     assert.match(html, /id="btn-tos-accept"/);
     assert.match(html, /id="btn-tos-decline"/);

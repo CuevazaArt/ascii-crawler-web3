@@ -41,12 +41,16 @@ test('xrpl-config.js auto-lives on localhost and stays sim on public hosts', () 
 });
 
 test('app boots in sim mode with the live layer loaded (no live rails without config)', () => {
-    const { window } = loadApp();
-    assert.ok(window.xrplLive, 'xrpl-client should expose window.xrplLive');
-    assert.equal(window.xrplLive.available(), false);
-    assert.equal(window.web3Simulator.isLiveMode(), false);
-    assert.equal(typeof window.web3Simulator.liveInsertCoin, 'function');
-    assert.equal(typeof window.web3Simulator.syncLiveEconomy, 'function');
+    const { window, dispose } = loadApp();
+    try {
+        assert.ok(window.xrplLive, 'xrpl-client should expose window.xrplLive');
+        assert.equal(window.xrplLive.available(), false);
+        assert.equal(window.web3Simulator.isLiveMode(), false);
+        assert.equal(typeof window.web3Simulator.liveInsertCoin, 'function');
+        assert.equal(typeof window.web3Simulator.syncLiveEconomy, 'function');
+    } finally {
+        dispose();
+    }
 });
 
 test('legal docs carry the live-operator real-money terms', () => {

@@ -1,26 +1,43 @@
-# Leak Runner — XRPL arcade demo
+# Leak Runner — XRPL arcade
 
-Boot a **Node** on the **Securithon Grid**: harvest Drops, seize Relics, slash Exploits — with an Xaman / XRPL economy. Built for educational XRPL consumer-app experiments — not an official Ripple, XRPL Foundation, or Xaman product. Demo Mode is simulated; **live mainnet deployments may charge real XRP**.
+Boot a **Node** on the **Securithon Grid**: harvest Drops, seize Relics, slash Exploits — with an Xaman / XRPL economy. Built for educational XRPL consumer-app experiments — not an official Ripple, XRPL Foundation, or Xaman product. **Live play requires a wallet stake** (Testnet or Mainnet depending on config); there is no free demo toggle in the UI.
 
-**Repository:** [github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3)
+**Repository:** [github.com/CuevazaArt/ascii-crawler-web3](https://github.com/CuevazaArt/ascii-crawler-web3) · **[Changelog](CHANGELOG.md)**
 
-## Quick start
+## Quick start (local)
+
+**Terminal 1 — operator API**
+
+```bash
+cd server && npm install && cp .env.example .env
+# set XRPL_OPERATOR_SEED (testnet faucet wallet)
+npm run dev
+```
+
+**Terminal 2 — frontend**
 
 ```bash
 python -m http.server 8765
 ```
 
-Open [http://127.0.0.1:8765/](http://127.0.0.1:8765/).
+| Service | URL |
+| --- | --- |
+| Game | http://127.0.0.1:8765/ |
+| API panel | http://127.0.0.1:8787/ |
+
+On localhost, `xrpl-config.js` defaults to **live** mode pointing at `:8787`. Connect **Xaman** with a **player Testnet wallet** (not the operator hot wallet), then **START WITH n XRP**.
+
+See [CHANGELOG.md](CHANGELOG.md) for v0.7.0 UX details (± stake, operator-wallet gate, run recap).
 
 ## What is real vs. simulated
 
 Honest status of the XRPL layer (important for judges and contributors). The game ships in **sim mode** by default; an operator flips it live via `xrpl-config.js` + the [`server/` operator API](server/README.md).
 
-| Layer | Sim mode (default) | Live mode (`xrpl-config.js` filled in) |
+| Layer | Sim mode (incomplete live config) | Live mode (`xrpl-config.js` + operator API) |
 | --- | --- | --- |
 | Game engine, pixel art, audio, attract mode | **Real** — runs fully client-side | Same |
 | Xaman connect | Local mock | **Real** — Xaman OAuth2 PKCE sign-in |
-| Entry stake (0.5 XRP) | Simulated | **Real Payment** signed in Xaman, verified on-ledger by the operator API before the run starts |
+| Entry stake (0.5 XRP+) | Simulated after ToS accept | **Real Payment** signed in Xaman, verified on-ledger before run start |
 | Run earn, payouts, ScoreCommit | Simulated | **Real** — server-authoritative accrual with caps; the operator hot wallet signs the settle Payment (ceiling 1.1× stake) with an on-ledger `leakrunner/scorecommit` memo |
 | Prize bags, epochs, leaderboards | `localStorage` | **Server-side** (SQLite), epoch prizes queued for manual approval |
 | Payment Channels, NFT mint/burn, skin charges | Simulated narrative | Still simulated (post-launch roadmap) |

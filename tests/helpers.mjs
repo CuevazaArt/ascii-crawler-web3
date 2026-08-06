@@ -93,8 +93,10 @@ export function loadApp() {
     html = html.replace(/<script[\s\S]*?<\/script>/gi, '');
     html = html.replace(/<link[^>]*>/gi, '');
 
+    // Non-local host keeps XRPL_LIVE_CONFIG.mode === 'sim' so tests never
+    // open live rails / operator fetch / Xaman restore timers.
     const dom = new JSDOM(html, {
-        url: 'http://127.0.0.1:8765/',
+        url: 'https://ci.leakrunner.test/',
         pretendToBeVisual: true,
         runScripts: 'dangerously'
     });
@@ -102,6 +104,9 @@ export function loadApp() {
 
     stubCanvas(window);
     stubAudio(window);
+    window.fetch = async () => {
+        throw new Error('fetch stubbed in tests');
+    };
     window.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 0);
     window.cancelAnimationFrame = (id) => clearTimeout(id);
     window.navigator.getGamepads = () => [];
@@ -127,13 +132,30 @@ export function loadApp() {
             clearInterval(window.web3Simulator._bannerTimer);
             window.web3Simulator._bannerTimer = null;
         }
+        if (window.web3Simulator._liveEconomyTimer) {
+            clearInterval(window.web3Simulator._liveEconomyTimer);
+            window.web3Simulator._liveEconomyTimer = null;
+        }
         window.web3Simulator.hideAttractScreen = () => {
             window.web3Simulator._attractVisible = false;
         };
         window.web3Simulator.startAttractCycle = () => {};
     }
+    if (window.gameEngine?.stopGame) {
+        try { window.gameEngine.stopGame(); } catch (_) { /* ignore */ }
+    }
 
-    return { window, document: window.document, root: ROOT };
+    const dispose = () => {
+        try {
+            if (window.web3Simulator?._attractTimer) clearTimeout(window.web3Simulator._attractTimer);
+            if (window.web3Simulator?._bannerTimer) clearInterval(window.web3Simulator._bannerTimer);
+            if (window.web3Simulator?._liveEconomyTimer) clearInterval(window.web3Simulator._liveEconomyTimer);
+            if (window.gameEngine?.stopGame) window.gameEngine.stopGame();
+            window.close();
+        } catch (_) { /* already closed */ }
+    };
+
+    return { window, document: window.document, root: ROOT, dispose, dom };
 }
 
 export function readRoot(...parts) {

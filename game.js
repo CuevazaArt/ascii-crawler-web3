@@ -259,14 +259,101 @@ class GameEngine {
         this.hudLives = document.getElementById('hud-lives');
         this.hudRelics = document.getElementById('hud-relics');
         this.hudTier = document.getElementById('hud-tier');
+        this.phaseBanner = document.getElementById('phase-banner');
+        this.phaseKicker = document.getElementById('phase-kicker');
+        this.phaseTitle = document.getElementById('phase-title');
+        this.phaseDetail = document.getElementById('phase-detail');
+        this.phaseMeter = document.getElementById('phase-meter');
+        this.phaseMeterFill = document.getElementById('phase-meter-fill');
+        this._phaseKey = '';
+        this.stanceTriad = document.getElementById('stance-triad');
+        this.stancePending = document.getElementById('stance-pending');
+        this._stanceKey = '';
+        this._stanceOutcome = null; // 'win' | 'vdb' | 'lose' when run ends
+        this._clearMilestone = 0; // 0/25/50/75/100 feedback ticks
 
         window.gameEngine = this;
         this.setupKeyboardInput();
         this.setupGamepadInput();
         this.setupTouchInput();
+        this.setupStanceTriad();
         this.renderLorePanel();
         this.renderHudRelicSlots();
         this.updateLivesDisplay(this.lives);
+        this.bindPlayfieldLayoutSync();
+        this.setupViewportAndFullscreen();
+    }
+
+    /** Keep fx-bursts overlay aligned when the canvas scales to fit the terminal. */
+    syncPlayfieldLayout() {
+        const canvas = this.canvas;
+        const layer = this.fxBursts;
+        const stack = canvas?.parentElement;
+        if (!canvas || !layer || !stack) return;
+        const cRect = canvas.getBoundingClientRect();
+        const sRect = stack.getBoundingClientRect();
+        layer.style.position = 'absolute';
+        layer.style.left = `${cRect.left - sRect.left}px`;
+        layer.style.top = `${cRect.top - sRect.top}px`;
+        layer.style.width = `${cRect.width}px`;
+        layer.style.height = `${cRect.height}px`;
+    }
+
+    bindPlayfieldLayoutSync() {
+        if (this._playfieldLayoutBound) return;
+        this._playfieldLayoutBound = true;
+        const stack = document.querySelector('.canvas-stack');
+        const sync = () => this.syncPlayfieldLayout();
+        if (typeof ResizeObserver !== 'undefined') {
+            this._playfieldRo = new ResizeObserver(sync);
+            if (stack) this._playfieldRo.observe(stack);
+            if (this.canvas) this._playfieldRo.observe(this.canvas);
+        }
+        window.addEventListener('resize', sync);
+        window.visualViewport?.addEventListener('resize', sync);
+        window.visualViewport?.addEventListener('scroll', sync);
+        sync();
+    }
+
+    setupViewportAndFullscreen() {
+        const btn = document.getElementById('btn-fullscreen');
+        const root = document.querySelector('.app-container');
+        if (!root) return;
+
+        const syncFs = () => {
+            const fs = document.fullscreenElement === root;
+            root.classList.toggle('is-fullscreen', fs);
+            if (btn) {
+                btn.setAttribute('aria-pressed', fs ? 'true' : 'false');
+                const icon = btn.querySelector('i');
+                if (icon) icon.className = fs ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+            }
+            this.syncPlayfieldLayout();
+        };
+
+        btn?.addEventListener('click', () => {
+            if (document.fullscreenElement === root) {
+                document.exitFullscreen?.().catch(() => {});
+                return;
+            }
+            root.requestFullscreen?.().catch(() => {
+                window.web3Simulator?.log?.('Fullscreen not available in this browser.', 'system');
+            });
+        });
+
+        document.addEventListener('fullscreenchange', syncFs);
+        syncFs();
+    }
+
+    setupStanceTriad() {
+        const vdb = document.getElementById('stance-vdb');
+        if (!vdb || vdb._stanceBound) return;
+        vdb._stanceBound = true;
+        vdb.addEventListener('click', () => {
+            if (!this.isActive || this._stanceOutcome) return;
+            const btn = document.getElementById('btn-claim-exit');
+            if (btn && !btn.disabled) btn.click();
+        });
     }
 
     /** Chunky Node life icon — rounded vault square with wedge mouth + big eye. */
@@ -353,6 +440,9 @@ class GameEngine {
         this.deathAnim = null;
         this.introTicks = 8;
         this.wallFlashUntil = 0;
+        this._stanceOutcome = null;
+        this._stanceKey = '';
+        this._clearMilestone = 0;
         const stack = document.querySelector('.canvas-stack');
         if (stack) {
             stack.classList.remove('node-death-shake', 'node-death-final');
@@ -376,10 +466,20 @@ class GameEngine {
 
         const prompt = document.getElementById('start-prompt');
         if (prompt) prompt.style.display = 'none';
+        const runRecap = document.getElementById('run-recap');
+        if (runRecap) runRecap.hidden = true;
         if (this.gameStage) this.gameStage.style.display = 'flex';
         if (this.canvas) this.canvas.style.display = 'block';
+        const terminalScreen = document.getElementById('terminal-screen');
+        if (terminalScreen) terminalScreen.classList.add('is-playing');
+        document.querySelector('.game-panel')?.classList.add('is-playing');
+        document.body.classList.add('is-playing-view');
+        const railKicker = document.querySelector('.action-rail-kicker');
+        if (railKicker) railKicker.textContent = 'EN RUN · VDB COBRA EL HARVEST';
 
         this.updateUI();
+        this.syncPlayfieldLayout();
+        this.focusPlayfield();
         if (window.retroAudio) {
             window.retroAudio.threat = 0;
             if (window.retroAudio.playReady) window.retroAudio.playReady();
@@ -440,10 +540,21 @@ class GameEngine {
         if (this.effectRow) this.effectRow.style.display = 'none';
         if (this.gameStage) this.gameStage.style.display = 'none';
         if (this.canvas) this.canvas.style.display = 'none';
+        const terminalScreen = document.getElementById('terminal-screen');
+        if (terminalScreen) terminalScreen.classList.remove('is-playing');
+        document.querySelector('.game-panel')?.classList.remove('is-playing');
+        document.body.classList.remove('is-playing-view');
+        const railKicker = document.querySelector('.action-rail-kicker');
+        if (railKicker) railKicker.textContent = 'FLUJO · COIN-IN → JUGAR → VDB';
         const prompt = document.getElementById('start-prompt');
         if (prompt) prompt.style.display = 'block';
         this.activeRelic = null;
         if (this.valRelic) this.valRelic.textContent = '—';
+        this._phaseKey = '';
+        this._stanceKey = '';
+        // Keep locked outcome visible briefly only if set; else reset triad
+        if (!this._stanceOutcome && this.stanceTriad) this.stanceTriad.dataset.stance = 'vdb';
+        this.updatePhaseBanner();
     }
 
     loadMap() {
@@ -485,27 +596,55 @@ class GameEngine {
         }));
     }
 
-    /** Retro START — letter S / on-screen button */
+    /** Retro START — letter S / on-screen button (same coin-in path as BOOT NODE). */
     tryStartFromInput() {
         if (this.isActive) return;
         if (window.retroAudio) window.retroAudio.playStart();
-        const btn = document.getElementById('btn-start-run');
-        if (btn && !btn.disabled) {
-            btn.click();
+        const sim = window.web3Simulator;
+        if (!sim) return;
+
+        const stakeModal = document.getElementById('stake-confirm-modal');
+        if (stakeModal && stakeModal.style.display === 'flex') {
+            if (typeof sim.acceptStakeConfirm === 'function') {
+                sim.acceptStakeConfirm();
+            } else {
+                try { document.getElementById('btn-stake-confirm')?.focus(); } catch (_) {}
+            }
             return;
         }
-        const sim = window.web3Simulator;
-        const live = !!(window.xrplLive && window.xrplLive.available());
-        let tip = 'START locked — Connect Xaman or enable Demo Mode, then press S / START.';
-        if (live && sim?.isConnected && !sim.isBypassMode) {
-            tip = 'Live mode: Stake needs ≥ ~1.51 XRP on Testnet in this wallet (you have '
-                + Number(sim.xrpBalance || 0).toFixed(2)
-                + ' XRP). Fund the faucet OR turn Demo ON to play without staking.';
-        } else if (!sim?.isConnected && !sim?.isBypassMode) {
-            tip = 'Connect Xaman first, or turn Demo ON to play locally without a wallet.';
+
+        if (!sim.isConnected) {
+            sim.log('Connect Xaman first — opening wallet link…', 'system');
+            if (typeof sim.connectWallet === 'function') {
+                sim.connectWallet();
+            } else {
+                const tip = 'Connect Xaman and stake XRP to play — no free runs.';
+                sim.log(tip, 'alert');
+                try { window.alert(tip); } catch (_) {}
+            }
+            return;
         }
-        sim?.log(tip, 'alert');
-        try { window.alert(tip); } catch (_) {}
+
+        const block = typeof sim.getPlayBlockReason === 'function' ? sim.getPlayBlockReason() : null;
+        if (block) {
+            if (typeof sim.resolvePlayBlock === 'function') {
+                sim.resolvePlayBlock();
+            } else {
+                sim.log(block, 'alert');
+                try { window.alert(block); } catch (_) {}
+            }
+            return;
+        }
+
+        if (typeof sim.insertCoinTransaction === 'function') {
+            sim.insertCoinTransaction();
+            return;
+        }
+
+        if (typeof sim.openStakeConfirmModal === 'function') {
+            if (!sim.participationCoins) sim.participationCoins = 1;
+            sim.openStakeConfirmModal();
+        }
     }
 
     setPalette(name) {
@@ -1149,27 +1288,412 @@ class GameEngine {
         const pal = this.getRenderPalette();
 
         ctx.save();
-        ctx.fillStyle = 'rgba(2,6,14,0.62)';
-        ctx.fillRect(0, midY - 44, w, 88);
-        ctx.strokeStyle = pal.wallHi;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(4, midY - 44, w - 8, 88);
+        ctx.fillStyle = 'rgba(2,6,14,0.72)';
+        ctx.fillRect(0, midY - 56, w, 112);
+        ctx.strokeStyle = '#ffe14d';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(4, midY - 56, w - 8, 112);
 
         ctx.textAlign = 'center';
-        ctx.font = 'bold 15px "Courier Prime", monospace';
-        ctx.fillStyle = pal.wallHi;
-        ctx.fillText(`SECTOR ${sectorTitle(this.level).toUpperCase()}`, w / 2, midY - 16);
+        ctx.font = 'bold 11px "Courier Prime", monospace';
+        ctx.fillStyle = '#8fd0ff';
+        ctx.fillText('MOMENT · HOLD · BREATHE', w / 2, midY - 34);
 
-        const blink = Math.floor(performance.now() / 250) % 2 === 0;
+        ctx.font = 'bold 14px "Courier Prime", monospace';
+        ctx.fillStyle = pal.wallHi;
+        ctx.fillText(`SECTOR ${sectorTitle(this.level).toUpperCase()}`, w / 2, midY - 12);
+
+        const blink = Math.floor(performance.now() / 220) % 2 === 0;
         if (blink) {
-            ctx.font = 'bold 26px "Courier Prime", monospace';
+            ctx.font = 'bold 28px "Courier Prime", monospace';
             ctx.fillStyle = '#ffe14d';
-            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.strokeStyle = 'rgba(0,0,0,0.85)';
             ctx.lineWidth = 4;
             ctx.strokeText('READY!', w / 2, midY + 22);
             ctx.fillText('READY!', w / 2, midY + 22);
         }
+        ctx.font = 'bold 10px "Courier Prime", monospace';
+        ctx.fillStyle = '#ff8a55';
+        ctx.fillText('SWARM INBOUND — TENSION ON', w / 2, midY + 44);
         ctx.restore();
+    }
+
+    /**
+     * Punchy “where am I” moment for the phase banner.
+     * Priority: death > ready > audit > reboot > heat > chase > scatter.
+     */
+    resolvePhaseMoment() {
+        const sector = sectorTitle(this.level);
+        const left = this.dotsRemaining | 0;
+        const total = Math.max(1, this.totalDots | 0);
+        const cleared = Math.round((1 - left / total) * 100);
+        const heat = left > 0 && left < 45;
+
+        if (!this.isActive) {
+            return {
+                key: 'idle',
+                phase: 'idle',
+                kicker: 'MOMENT',
+                title: 'LOBBY',
+                detail: 'Connect Xaman · stake XRP · the Grid owns your nerves',
+                meter: 0,
+                showMeter: false
+            };
+        }
+        if (this.deathAnim?.active) {
+            return {
+                key: 'breach',
+                phase: 'breach',
+                kicker: this.deathAnim.final ? 'FINAL BREACH' : 'BREACH',
+                title: this.deathAnim.final ? 'LIQUIDATED' : 'NODE HIT',
+                detail: this.deathAnim.final
+                    ? `${sector} · uptime 0 — session sealing`
+                    : `${sector} · reboot window · uptime ${this.lives}`,
+                meter: 1,
+                showMeter: true
+            };
+        }
+        if (this.introTicks > 0) {
+            return {
+                key: `ready-${this.level}`,
+                phase: 'ready',
+                kicker: 'MOMENT',
+                title: 'READY!',
+                detail: `${sector} · hold still — swarm about to move`,
+                meter: Math.min(1, this.introTicks / 10),
+                showMeter: true
+            };
+        }
+        if (this.frightenedTurns > 0) {
+            const secs = Math.ceil(this.frightenedTurns / 4);
+            return {
+                key: `audit-${secs}`,
+                phase: 'audit',
+                kicker: 'AUDIT WINDOW',
+                title: 'SLASH NOW',
+                detail: `${sector} · exploits exposed · ${secs}s left · greed is loud`,
+                meter: Math.min(1, this.frightenedTurns / this.frightenedDuration),
+                showMeter: true
+            };
+        }
+        if (this.invulnerableTurns > 0) {
+            return {
+                key: `reboot-${this.invulnerableTurns}`,
+                phase: 'reboot',
+                kicker: 'REBOOT',
+                title: 'GHOST FRAME',
+                detail: `${sector} · brief invuln · get distance before chase`,
+                meter: Math.min(1, this.invulnerableTurns / 14),
+                showMeter: true
+            };
+        }
+        if (heat) {
+            return {
+                key: `heat-${this.globalMode}`,
+                phase: 'heat',
+                kicker: 'HEAT',
+                title: 'LAST DROPS',
+                detail: `${sector} · ${left} left · Bitwaddle smells blood · ${cleared}% cleared`,
+                meter: cleared / 100,
+                showMeter: true
+            };
+        }
+        if (this.globalMode === 'chase') {
+            return {
+                key: 'chase',
+                phase: 'chase',
+                kicker: 'SWARM',
+                title: 'CHASE',
+                detail: `${sector} · they hunt uptime · ${left} drops · ${cleared}% cleared`,
+                meter: cleared / 100,
+                showMeter: true
+            };
+        }
+        return {
+            key: 'scatter',
+            phase: 'scatter',
+            kicker: 'SWARM',
+            title: 'SCATTER',
+            detail: `${sector} · they peel off — harvest hard · ${left} drops · ${cleared}% cleared`,
+            meter: cleared / 100,
+            showMeter: true
+        };
+    }
+
+    updatePhaseBanner() {
+        const m = this.resolvePhaseMoment();
+        if (!this.phaseBanner) return;
+        if (m.key !== this._phaseKey) {
+            this._phaseKey = m.key;
+            this.phaseBanner.dataset.phase = m.phase;
+            if (this.phaseKicker) this.phaseKicker.textContent = m.kicker;
+            if (this.phaseTitle) this.phaseTitle.textContent = m.title;
+            if (this.phaseDetail) this.phaseDetail.textContent = m.detail;
+        } else if (this.phaseDetail && m.detail !== this.phaseDetail.textContent) {
+            this.phaseDetail.textContent = m.detail;
+        }
+        if (this.phaseMeter && this.phaseMeterFill) {
+            if (m.showMeter) {
+                this.phaseMeter.hidden = false;
+                this.phaseMeterFill.style.width = `${Math.round((m.meter || 0) * 100)}%`;
+            } else {
+                this.phaseMeter.hidden = true;
+            }
+        }
+        this.updateStanceTriad(m);
+        this.updateBetBoard(m);
+    }
+
+    /** Drop reward constant (mirrors XRPL.DROP_REWARD). */
+    dropRewardXrp() {
+        return Number(window.XRPL?.DROP_REWARD) || 0.0005;
+    }
+
+    /**
+     * Live “you're betting you clear this level” board:
+     * progress + IF CLEAR / IF VDB NOW / IF LOSE consequences.
+     */
+    updateBetBoard(moment) {
+        const board = document.getElementById('bet-board');
+        if (!board) return;
+
+        const left = this.dotsRemaining | 0;
+        const total = Math.max(1, this.totalDots | 0);
+        const clearedPct = this.isActive
+            ? Math.min(100, Math.round((1 - left / total) * 100))
+            : 0;
+        const onBoardXrp = this.round3(left * this.dropRewardXrp());
+        const pending = Number(window.web3Simulator?.sessionPendingEarn || 0);
+        const escrow = Number(window.web3Simulator?.sessionEarnEscrow || 0.35);
+        const unpaid = Math.max(0, escrow - pending);
+        const nextName = GRID_SECTORS[this.level % GRID_SECTORS.length] || 'NEXT';
+        const sector = sectorTitle(this.level);
+        const heat = this.isActive && left > 0 && left < 45;
+
+        const fill = document.getElementById('bet-clear-fill');
+        const label = document.getElementById('bet-clear-label');
+        const odds = document.getElementById('bet-odds');
+        const clearBody = document.getElementById('bet-if-clear-body');
+        const vdbBody = document.getElementById('bet-if-vdb-body');
+        const loseBody = document.getElementById('bet-if-lose-body');
+        const pulse = document.getElementById('bet-pulse');
+
+        if (fill) fill.style.width = `${clearedPct}%`;
+        if (label) {
+            label.textContent = this.isActive
+                ? `${clearedPct}% · ${left} DROPS TO SEAL`
+                : 'BOOT TO BET THE CLEAR';
+        }
+
+        // Rough “odds” flavor from uptime + heat + clear progress (not RNG — tension dial)
+        let oddsLabel = '—';
+        if (this.isActive) {
+            if (this._stanceOutcome) {
+                oddsLabel = `LOCKED · ${this._stanceOutcome.toUpperCase()}`;
+            } else if (moment?.phase === 'breach') {
+                oddsLabel = 'BREACH · BET FAILING';
+            } else if (this.lives <= 1 && heat) {
+                oddsLabel = 'THIN ICE · DON\'T GREED';
+            } else if (clearedPct >= 75) {
+                oddsLabel = 'ALMOST · CLOSE THE BET';
+            } else if (clearedPct >= 50) {
+                oddsLabel = 'HALFWAY · SWARM WATCHING';
+            } else if (moment?.phase === 'audit') {
+                oddsLabel = 'AUDIT · SLASH OR GREED';
+            } else {
+                oddsLabel = `LIVE BET · ${sector.toUpperCase()}`;
+            }
+        }
+        if (odds) odds.textContent = oddsLabel;
+
+        if (clearBody) {
+            clearBody.textContent = this.isActive
+                ? `+500 pts · ~${onBoardXrp} XRP still on floor · → ${nextName}`
+                : '+500 pts · next sector · more reclaim';
+        }
+        if (vdbBody) {
+            vdbBody.textContent = this.isActive
+                ? `Take +${pending.toFixed(4)} XRP · leave ${unpaid.toFixed(4)} to pools`
+                : 'Leave with harvest only';
+        }
+        if (loseBody) {
+            loseBody.textContent = this.isActive
+                ? (this.lives <= 1
+                    ? `Final life · settle ~${pending.toFixed(4)} · rest → pools`
+                    : `Hit → uptime ${Math.max(0, this.lives - 1)} · scraps ~${pending.toFixed(4)}`)
+                : 'Uptime 0 · scraps only';
+        }
+
+        board.dataset.heat = heat ? '1' : '0';
+        if (pulse) {
+            pulse.classList.toggle('is-hot', heat || clearedPct >= 75);
+            if (!this.isActive) {
+                pulse.textContent = 'Arcade rule: you paid to participate — clearing sectors is how you play that payment out.';
+            } else if (this._stanceOutcome) {
+                pulse.textContent = `Run closed → ${this._stanceOutcome.toUpperCase()}. Payment already spent as play.`;
+            } else if (heat) {
+                pulse.textContent = `HEAT — ${left} drops left. You paid in; finish before Bitwaddle does.`;
+            } else if (moment?.phase === 'chase') {
+                pulse.textContent = `CHASE — still playing your coin-in. VDB banks +${pending.toFixed(4)} XRP right now.`;
+            } else if (moment?.phase === 'audit') {
+                pulse.textContent = `AUDIT — slash while it lasts. Clear still pays +500 + floor XRP.`;
+            } else {
+                pulse.textContent = `Playing your stake on ${sector}: ${left} drops left · VDB now = +${pending.toFixed(4)} XRP.`;
+            }
+        }
+
+        this.maybeAnnounceClearMilestone(clearedPct);
+        this.updateStakeTicker({ pending, escrow, clearedPct });
+    }
+
+    /**
+     * In-run stake meter: coin-in vs harvest now vs net vs lose scraps.
+     * Shown while playing (bet-board hidden for canvas space).
+     */
+    updateStakeTicker(ctx = {}) {
+        const ticker = document.getElementById('stake-ticker');
+        if (!ticker) return;
+
+        const sim = window.web3Simulator;
+        const stake = Number(sim?.sessionStake || window.XRPL?.ENTRY_STAKE || 0.5);
+        const show = this.isActive && stake > 0;
+
+        if (!show) {
+            ticker.hidden = true;
+            return;
+        }
+        ticker.hidden = false;
+
+        const pending = ctx.pending ?? Number(sim?.sessionPendingEarn || 0);
+        const escrow = ctx.escrow ?? Number(sim?.sessionEarnEscrow || stake * (window.XRPL?.STAKE_SPLIT?.earn ?? 0.7));
+        const maxMult = Number(window.XRPL?.MAX_RECLAIM_MULT || 1.1);
+        const maxPayout = this.roundXrp(stake * maxMult);
+        const returnNow = Math.min(pending, escrow, maxPayout);
+        const net = this.roundXrp(returnNow - stake);
+        const recoveryPct = Math.min(100, Math.round((returnNow / stake) * 100));
+        const barPct = Math.min(100, Math.round((returnNow / maxPayout) * 100));
+
+        const paidEl = document.getElementById('stake-ticker-paid');
+        const pctEl = document.getElementById('stake-ticker-pct');
+        const fillEl = document.getElementById('stake-ticker-fill');
+        const vdbEl = document.getElementById('stake-ticker-vdb');
+        const netEl = document.getElementById('stake-ticker-net');
+        const loseEl = document.getElementById('stake-ticker-lose');
+
+        if (paidEl) paidEl.textContent = stake.toFixed(2);
+        if (pctEl) {
+            pctEl.textContent = this._stanceOutcome
+                ? `LOCK · ${this._stanceOutcome.toUpperCase()}`
+                : `${recoveryPct}% back`;
+        }
+        if (fillEl) fillEl.style.width = `${barPct}%`;
+        if (vdbEl) vdbEl.textContent = returnNow.toFixed(4);
+        if (loseEl) loseEl.textContent = returnNow.toFixed(4);
+        if (netEl) {
+            const sign = net >= 0 ? '+' : '−';
+            netEl.textContent = `${sign}${Math.abs(net).toFixed(4)}`;
+        }
+
+        let state = 'down';
+        if (this._stanceOutcome) state = 'locked';
+        else if (returnNow >= stake) state = 'ahead';
+        else if (returnNow >= stake * 0.35) state = 'recovering';
+        ticker.dataset.state = state;
+    }
+
+    roundXrp(n) {
+        return Math.round(Number(n) * 1e6) / 1e6;
+    }
+
+    round3(n) {
+        return (Math.round(Number(n) * 1000) / 1000).toFixed(3);
+    }
+
+    maybeAnnounceClearMilestone(clearedPct) {
+        if (!this.isActive || !window.web3Simulator?.log) return;
+        const marks = [25, 50, 75];
+        for (const m of marks) {
+            if (clearedPct >= m && this._clearMilestone < m) {
+                this._clearMilestone = m;
+                const left = this.dotsRemaining | 0;
+                const onBoard = this.round3(left * this.dropRewardXrp());
+                window.web3Simulator.log(
+                    `Clear bet ${m}% — ${left} drops left (~${onBoard} XRP on floor). Seal = +500 · still your call: PUSH / VDB / die.`,
+                    m >= 75 ? 'alert' : 'event'
+                );
+            }
+        }
+    }
+
+    /**
+     * Three doors always: WIN (push), VDB (bail with harvest), LOSE (breach).
+     * Highlights the pressure you're under — outcome locks on settle/death.
+     */
+    resolveStance(moment) {
+        if (this._stanceOutcome) return this._stanceOutcome;
+        if (!this.isActive) return 'vdb';
+        if (moment?.phase === 'breach' || (this.deathAnim?.active && this.deathAnim.final)) return 'lose';
+        if (this.deathAnim?.active) return 'lose';
+        if (this.lives <= 1 && (moment?.phase === 'chase' || moment?.phase === 'heat')) return 'lose';
+        const pending = Number(window.web3Simulator?.sessionPendingEarn || 0);
+        const escrow = Number(window.web3Simulator?.sessionEarnEscrow || 0.35);
+        const cleared = this.totalDots ? 1 - (this.dotsRemaining / this.totalDots) : 0;
+        if (moment?.phase === 'audit' && pending > 0.02) return 'win';
+        if (this.level >= 2 && this.lives >= 2) return 'win';
+        if (cleared >= 0.55 && this.lives >= 2) return 'win';
+        if (pending >= escrow * 0.45 && this.lives >= 2) return 'win';
+        return 'vdb';
+    }
+
+    updateStanceTriad(moment) {
+        if (!this.stanceTriad) return;
+        const stance = this.resolveStance(moment || this.resolvePhaseMoment());
+        if (stance !== this._stanceKey) {
+            this._stanceKey = stance;
+            this.stanceTriad.dataset.stance = stance;
+        }
+        const pending = Number(window.web3Simulator?.sessionPendingEarn || 0);
+        const left = this.dotsRemaining | 0;
+        const onBoard = this.round3(left * this.dropRewardXrp());
+        if (this.stancePending) {
+            this.stancePending.textContent = `+${pending.toFixed(4)} XRP`;
+        }
+        const winBlurb = document.getElementById('stance-win-blurb');
+        const vdbBlurb = document.getElementById('stance-vdb-blurb');
+        const loseBlurb = document.getElementById('stance-lose-blurb');
+        if (winBlurb && this.isActive) {
+            winBlurb.textContent = left > 0
+                ? `Seal = +500 · ~${onBoard} XRP still on floor`
+                : 'Sector sealed — push the next bet';
+        }
+        if (vdbBlurb && this.isActive) {
+            vdbBlurb.textContent = `Bank +${pending.toFixed(4)} now · forfeit the clear`;
+        }
+        if (loseBlurb && this.isActive) {
+            loseBlurb.textContent = this.lives <= 1
+                ? `Last uptime — die = scraps +${pending.toFixed(4)}`
+                : `Hit costs 1 uptime · harvest at risk`;
+        }
+        ['win', 'vdb', 'lose'].forEach((id) => {
+            const el = document.getElementById(`stance-${id}`);
+            if (!el) return;
+            el.classList.toggle('is-locked', !!this._stanceOutcome && this._stanceOutcome === id);
+        });
+    }
+
+    /** Lock the triad when the run resolves (WIN seal fantasy / VDB claim / LOSE). */
+    lockStanceOutcome(outcome) {
+        this._stanceOutcome = outcome === 'win' || outcome === 'lose' ? outcome : 'vdb';
+        this._stanceKey = '';
+        this.updateStanceTriad();
+        if (window.web3Simulator?.log) {
+            const labels = {
+                win: 'WIN locked — you pushed the Grid.',
+                vdb: 'VDB locked — Voluntary Departure Bail · harvest settled.',
+                lose: 'LOSE locked — swarm took the Node.'
+            };
+            window.web3Simulator.log(labels[this._stanceOutcome], this._stanceOutcome === 'lose' ? 'alert' : 'event');
+        }
     }
 
     /**
@@ -1563,35 +2087,99 @@ class GameEngine {
 
     // ——— Input / movement (same core, updated collisions) ———
 
-    setupKeyboardInput() {
-        document.addEventListener('keydown', (e) => {
-            const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    isBlockingOverlayOpen() {
+        const ids = ['tos-modal', 'xaman-sign-modal', 'gameover-modal', 'stake-confirm-modal'];
+        return ids.some((id) => {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            const style = window.getComputedStyle(el);
+            return style.display !== 'none' && style.visibility !== 'hidden';
+        });
+    }
 
-            // Retro arcade START (letter S) when not in a run
-            if (!this.isActive && (key === 'S' || key === 'Enter' || key === ' ')) {
-                e.preventDefault();
-                this.tryStartFromInput();
+    /** Keep key events on the maze — buttons/banner must not steal WASD/arrows mid-run. */
+    focusPlayfield() {
+        const stack = document.querySelector('.canvas-stack');
+        if (!stack) return;
+        if (!stack.hasAttribute('tabindex')) stack.setAttribute('tabindex', '-1');
+        try {
+            const ae = document.activeElement;
+            if (ae && ae !== stack && typeof ae.blur === 'function') ae.blur();
+            stack.focus({ preventScroll: true });
+        } catch (_) { /* headless / older browsers */ }
+    }
+
+    /** Map key / code → grid direction. Prefers e.code (layout-independent). */
+    dirFromKeyboardEvent(e) {
+        const code = e.code || '';
+        switch (code) {
+            case 'ArrowUp': case 'KeyW': case 'Numpad8': return { dx: 0, dy: -1 };
+            case 'ArrowDown': case 'KeyS': case 'Numpad2': return { dx: 0, dy: 1 };
+            case 'ArrowLeft': case 'KeyA': case 'Numpad4': return { dx: -1, dy: 0 };
+            case 'ArrowRight': case 'KeyD': case 'Numpad6': return { dx: 1, dy: 0 };
+            default: break;
+        }
+        const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+        switch (key) {
+            case 'ArrowUp': case 'Up': case 'W': return { dx: 0, dy: -1 };
+            case 'ArrowDown': case 'Down': case 'S': return { dx: 0, dy: 1 };
+            case 'ArrowLeft': case 'Left': case 'A': return { dx: -1, dy: 0 };
+            case 'ArrowRight': case 'Right': case 'D': return { dx: 1, dy: 0 };
+            default: return null;
+        }
+    }
+
+    setupKeyboardInput() {
+        // Capture on window so focused buttons / banner never swallow movement keys.
+        window.addEventListener('keydown', (e) => {
+            // Ignore chords that belong to the browser (Ctrl+R, Ctrl+L, etc.)
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+            // Don't steal keys from legal / Xaman / game-over dialogs
+            if (this.isBlockingOverlayOpen()) return;
+
+            const key = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+            const code = e.code || '';
+
+            // Retro arcade START when not in a run (S / Enter / Space)
+            if (!this.isActive) {
+                const startKey = key === 'S' || key === 'Enter' || key === ' '
+                    || code === 'KeyS' || code === 'Enter' || code === 'Space';
+                if (startKey) {
+                    e.preventDefault();
+                    this.tryStartFromInput();
+                }
                 return;
             }
 
-            if (!this.isActive) return;
+            const dir = this.dirFromKeyboardEvent(e);
+            if (!dir) return;
 
-            let dx = 0, dy = 0;
-            switch (key) {
-                case 'ArrowUp': case 'W': dy = -1; break;
-                case 'ArrowDown': case 'S': dy = 1; break; // S = down only in-run
-                case 'ArrowLeft': case 'A': dx = -1; break;
-                case 'ArrowRight': case 'D': dx = 1; break;
-                default: return;
-            }
             e.preventDefault();
-            this.nextDirX = dx;
-            this.nextDirY = dy;
-        });
+            this.nextDirX = dir.dx;
+            this.nextDirY = dir.dy;
+            // Instant reverse / open-path turn — don't wait for the next 250ms tick
+            if (this.canMove(dir.dx, dir.dy)) {
+                this.dirX = dir.dx;
+                this.dirY = dir.dy;
+            }
+        }, true);
 
         const startBtn = document.getElementById('btn-arcade-start');
         if (startBtn) {
             startBtn.addEventListener('click', () => this.tryStartFromInput());
+        }
+
+        const stack = document.querySelector('.canvas-stack');
+        if (stack) {
+            stack.setAttribute('tabindex', '-1');
+            stack.setAttribute('aria-label', 'Securithon Grid — click then use arrows or WASD');
+            stack.addEventListener('pointerdown', () => this.focusPlayfield());
+        }
+        const screen = document.getElementById('terminal-screen');
+        if (screen) {
+            screen.addEventListener('pointerdown', () => {
+                if (this.isActive) this.focusPlayfield();
+            });
         }
     }
 
@@ -1959,6 +2547,9 @@ class GameEngine {
 
     checkLevelCompletion() {
         if (this.dotsRemaining > 0) return;
+        const sealed = sectorTitle(this.level);
+        const next = sectorTitle(this.level + 1);
+        const pending = Number(window.web3Simulator?.sessionPendingEarn || 0);
         this.level++;
         this.score += 500;
         this.invulnerableTurns = 14;
@@ -1968,26 +2559,36 @@ class GameEngine {
         this.slashChain = 0;
         this.introTicks = 10;
         this.wallFlashUntil = performance.now() + 900;
+        this._clearMilestone = 0;
         this.applyLevelPacing();
         this.restartTickLoop();
         window.web3Simulator.log(
-            `Sector sealed: ${sectorTitle(this.level - 1)} · +500 · descending into ${sectorTitle(this.level)}.`,
+            `CLEAR BET WON — ${sealed} sealed · +500 pts · harvest now +${pending.toFixed(4)} XRP · next bet: ${next}.`,
             'event'
+        );
+        window.web3Simulator.log(
+            'Consequence: you stayed for the clear. VDB would have banked earlier for less floor XRP. Swarm resets — greed continues.',
+            'zk'
         );
         if (window.retroAudio) {
             if (window.retroAudio.playSectorClear) window.retroAudio.playSectorClear();
             else window.retroAudio.playFruit();
         }
         this.spawnArcadeBurst({
-            title: 'SECTOR SEALED!',
+            title: 'CLEAR BET WON!',
             ono: '+500',
-            scoreText: `NEXT: ${GRID_SECTORS[(this.level - 1) % GRID_SECTORS.length].toUpperCase()}`,
+            scoreText: `NEXT BET: ${GRID_SECTORS[(this.level - 1) % GRID_SECTORS.length].toUpperCase()}`,
             color: '#00e6b8',
             accent: '#ffe14d',
             c: this.player.x,
             r: this.player.y,
             kind: 'relic'
         });
+        const pulse = document.getElementById('bet-pulse');
+        if (pulse) {
+            pulse.classList.add('is-hot');
+            pulse.textContent = `You cleared ${sealed}. New bet is live on ${next}.`;
+        }
         this.loadMap();
         this.spawnExploits();
         this.player.x = this.player.startX;
@@ -1996,6 +2597,7 @@ class GameEngine {
         this.modeIndex = 0;
         this.modeTimer = this.modeSchedule[0].ticks;
         this.globalMode = this.modeSchedule[0].mode;
+        this.updateBetBoard(this.resolvePhaseMoment());
     }
 
     formatScoreDisplay(n) {
@@ -2016,14 +2618,29 @@ class GameEngine {
             this.hudTier.textContent = `${maxTier.toFixed(3)} XRP`;
         }
         this.syncHudRelics();
-        if (this.valMode) this.valMode.textContent = this.frightenedTurns > 0 ? 'AUDIT' : this.globalMode.toUpperCase();
+        const moment = this.resolvePhaseMoment();
+        if (this.valMode) {
+            const tag = moment.phase === 'audit' ? 'AUDIT'
+                : moment.phase === 'heat' ? `HEAT/${this.globalMode.toUpperCase()}`
+                : moment.phase === 'breach' ? 'BREACH'
+                : moment.phase === 'ready' ? 'READY'
+                : moment.phase === 'reboot' ? 'REBOOT'
+                : this.globalMode.toUpperCase();
+            this.valMode.textContent = tag;
+        }
         if (this.frightenedTurns > 0) {
             if (this.effectRow) this.effectRow.style.display = 'flex';
             if (this.valEffectTimer) this.valEffectTimer.textContent = `${Math.ceil(this.frightenedTurns / 4)}s`;
         } else if (this.effectRow) {
             this.effectRow.style.display = 'none';
         }
+        this.updatePhaseBanner();
         if (!this.animFrameId) this.renderMap();
+    }
+
+    /** Lobby panel between runs — stake in / payout / net / time / actions. */
+    showRunRecap(recap) {
+        window.web3Simulator?.fillRunRecapDom?.(recap, 'run-recap-');
     }
 }
 

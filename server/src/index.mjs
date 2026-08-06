@@ -3,6 +3,7 @@ import { loadConfig } from './config.mjs';
 import { openDb } from './db.mjs';
 import { XrplService } from './xrpl-service.mjs';
 import { createApp, ApiError } from './app.mjs';
+import { renderStatusPage, apiIndex } from './status-page.mjs';
 
 const cfg = loadConfig();
 const db = openDb(cfg.dbFile, { epochMs: cfg.epochMs });
@@ -65,12 +66,19 @@ function readBody(req) {
 }
 
 const routes = {
+    'GET /': async () => {
+        const health = await app.getHealth();
+        const economy = app.getLeaderboard();
+        return { __html: renderStatusPage(health, economy) };
+    },
+    'GET /api': () => apiIndex(),
     'POST /api/run/intent': (body) => app.postIntent(body),
     'POST /api/run/start': (body) => app.postStart(body),
     'POST /api/run/events': (body) => app.postEvents(body),
     'POST /api/run/settle': (body) => app.postSettle(body),
     'GET /api/leaderboard': () => app.getLeaderboard(),
     'GET /api/health': () => app.getHealth(),
+    'GET /api/account': (_body, url) => app.getAccount(url.searchParams.get('account')),
     'POST /api/admin/pending': (body) => app.adminPending(body),
     'POST /api/admin/approve': (body) => app.adminApprove(body)
 };
@@ -119,7 +127,12 @@ const server = http.createServer(async (req, res) => {
 
     try {
         const body = req.method === 'POST' ? await readBody(req) : undefined;
-        const data = await handler(body);
+        const data = await handler(body, url);
+        if (data?.__html) {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', ...corsHeaders(origin) });
+            res.end(data.__html);
+            return;
+        }
         res.writeHead(200, headers);
         res.end(JSON.stringify(data));
     } catch (e) {
