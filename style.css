@@ -825,6 +825,71 @@ body {
     box-shadow: 0 0 8px var(--color-success);
 }
 
+.wallet-balance-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 2px;
+    padding-left: 8px;
+    border-left: 1px solid hsla(210, 30%, 40%, 0.45);
+    color: hsl(185, 70%, 70%);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.wallet-balance-chip[hidden] {
+    display: none !important;
+}
+
+.bal-amount[data-visible="0"],
+#val-xrp-balance[data-visible="0"] {
+    filter: blur(5px);
+    user-select: none;
+    color: hsla(185, 40%, 60%, 0.55);
+}
+
+.bal-eye-btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: hsla(210, 40%, 75%, 0.85);
+    cursor: pointer;
+    padding: 0 2px;
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0.75;
+}
+
+.bal-eye-btn:hover {
+    opacity: 1;
+    color: hsl(185, 80%, 75%);
+}
+
+.bal-eye-inline {
+    margin-left: 6px;
+    font-size: 0.75rem;
+}
+
+.btn-disconnect-xaman {
+    border-radius: 999px !important;
+    padding: 7px 12px !important;
+    font-size: 0.72rem !important;
+    letter-spacing: 0.02em;
+    border: 1px solid hsla(0, 40%, 45%, 0.45) !important;
+    background: hsla(210, 30%, 10%, 0.85) !important;
+    color: hsl(10, 70%, 72%) !important;
+    box-shadow: none !important;
+}
+
+.btn-disconnect-xaman[hidden] {
+    display: none !important;
+}
+
+.btn-disconnect-xaman:hover:not(:disabled) {
+    border-color: hsla(0, 70%, 55%, 0.65) !important;
+    color: hsl(10, 90%, 78%) !important;
+}
+
 .btn-connect-xaman {
     border-radius: 999px !important;
     padding: 8px 14px !important;

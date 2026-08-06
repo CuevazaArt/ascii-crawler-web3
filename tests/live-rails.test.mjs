@@ -32,9 +32,10 @@ test('script order: config → PKCE SDK → client → blockchain', () => {
     }
 });
 
-test('xrpl-config.js ships in safe sim mode by default', () => {
+test('xrpl-config.js auto-lives on localhost and stays sim on public hosts', () => {
     const cfg = readRoot('xrpl-config.js');
-    assert.match(cfg, /mode:\s*'sim'/);
+    assert.match(cfg, /mode:\s*local \? 'live' : 'sim'/);
+    assert.match(cfg, /127\.0\.0\.1:8787/);
     assert.match(cfg, /livenet\.xrpl\.org/);
     assert.match(cfg, /testnet\.xrpl\.org/);
 });

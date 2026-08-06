@@ -494,10 +494,18 @@ class GameEngine {
             btn.click();
             return;
         }
-        window.web3Simulator?.log(
-            'START locked — Connect Xaman or enable Demo Mode, then press S / START.',
-            'alert'
-        );
+        const sim = window.web3Simulator;
+        const live = !!(window.xrplLive && window.xrplLive.available());
+        let tip = 'START locked — Connect Xaman or enable Demo Mode, then press S / START.';
+        if (live && sim?.isConnected && !sim.isBypassMode) {
+            tip = 'Live mode: Stake needs ≥ ~1.51 XRP on Testnet in this wallet (you have '
+                + Number(sim.xrpBalance || 0).toFixed(2)
+                + ' XRP). Fund the faucet OR turn Demo ON to play without staking.';
+        } else if (!sim?.isConnected && !sim?.isBypassMode) {
+            tip = 'Connect Xaman first, or turn Demo ON to play locally without a wallet.';
+        }
+        sim?.log(tip, 'alert');
+        try { window.alert(tip); } catch (_) {}
     }
 
     setPalette(name) {

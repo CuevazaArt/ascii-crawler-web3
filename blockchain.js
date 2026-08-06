@@ -82,18 +82,22 @@ class Web3Simulator {
         this.walletAddressEl = document.querySelector('.wallet-address');
         this.indicatorEl = document.querySelector('.status-indicator');
         this.btnConnect = document.getElementById('btn-connect');
+        this.btnDisconnect = document.getElementById('btn-disconnect');
         this.btnStartRun = document.getElementById('btn-start-run');
         this.btnClaimExit = document.getElementById('btn-claim-exit');
         this.btnSessionKeys = document.getElementById('btn-session-keys');
         this.logsContainer = document.getElementById('logs-container');
-        
+
         this.valXrpBalance = document.getElementById('val-xrp-balance');
+        this.valHeaderXrp = document.getElementById('val-header-xrp');
+        this.walletBalanceChip = document.getElementById('wallet-balance-chip');
+        this.balanceVisible = this.loadBalanceVisibility();
         this.valHeroNft = document.getElementById('val-hero-nft');
         this.valHeroClass = document.getElementById('val-hero-class');
         this.valBestScore = document.getElementById('val-best-score');
         this.leaderboardEl = document.getElementById('score-leaderboard');
         this.sessionKeyBadge = document.getElementById('session-key-badge');
-        
+
         this.chkBypass = document.getElementById('chk-bypass-web3');
         this.btnPaletteClassic = document.getElementById('btn-palette-classic');
         this.btnPaletteGreen = document.getElementById('btn-palette-green');
@@ -934,6 +938,13 @@ class Web3Simulator {
 
     setupEventListeners() {
         if (this.btnConnect) this.btnConnect.addEventListener('click', () => this.connectWallet());
+        if (this.btnDisconnect) this.btnDisconnect.addEventListener('click', () => this.disconnectWallet());
+        const balToggles = [
+            document.getElementById('btn-toggle-balance'),
+            document.getElementById('btn-toggle-balance-side')
+        ].filter(Boolean);
+        balToggles.forEach((btn) => btn.addEventListener('click', () => this.toggleBalanceVisibility()));
+        this.applyBalanceVisibility();
         if (this.btnSessionKeys) this.btnSessionKeys.addEventListener('click', () => this.toggleSessionKeys());
         if (this.btnStartRun) this.btnStartRun.addEventListener('click', () => this.insertCoinTransaction());
         if (this.btnClaimExit) this.btnClaimExit.addEventListener('click', () => this.cashOutTransaction());
@@ -1048,18 +1059,130 @@ class Web3Simulator {
 
     creditXrp(amount) {
         this.xrpBalance = this.roundXrp(this.xrpBalance + amount);
-        if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
+        this.renderBalance();
     }
 
     debitXrp(amount) {
         this.xrpBalance = Math.round((this.xrpBalance - amount) * 1e9) / 1e9;
-        if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
+        this.renderBalance();
+    }
+
+    loadBalanceVisibility() {
+        try {
+            return localStorage.getItem('lr-bal-visible') !== '0';
+        } catch (_) {
+            return true;
+        }
+    }
+
+    saveBalanceVisibility() {
+        try {
+            localStorage.setItem('lr-bal-visible', this.balanceVisible ? '1' : '0');
+        } catch (_) { /* ignore */ }
+    }
+
+    toggleBalanceVisibility() {
+        this.balanceVisible = !this.balanceVisible;
+        this.saveBalanceVisibility();
+        this.applyBalanceVisibility();
+        if (window.retroAudio) window.retroAudio.playClick();
+    }
+
+    applyBalanceVisibility() {
+        const vis = this.balanceVisible ? '1' : '0';
+        if (this.valXrpBalance) this.valXrpBalance.dataset.visible = vis;
+        if (this.valHeaderXrp) this.valHeaderXrp.dataset.visible = vis;
+        document.querySelectorAll('#btn-toggle-balance, #btn-toggle-balance-side').forEach((btn) => {
+            const icon = btn.querySelector('i');
+            if (icon) icon.className = this.balanceVisible ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+            btn.setAttribute('aria-pressed', this.balanceVisible ? 'true' : 'false');
+            btn.title = this.balanceVisible ? 'Hide balance' : 'Show balance';
+        });
+    }
+
+    renderBalance() {
+        const text = Number(this.xrpBalance || 0).toFixed(6);
+        if (this.valXrpBalance) this.valXrpBalance.textContent = text;
+        if (this.valHeaderXrp) this.valHeaderXrp.textContent = `${text} XRP`;
+        this.applyBalanceVisibility();
+    }
+
+    setWalletChrome({ connected, addressLabel }) {
+        if (this.indicatorEl) {
+            this.indicatorEl.className = connected
+                ? 'status-indicator connected'
+                : 'status-indicator disconnected';
+        }
+        if (this.walletAddressEl) {
+            this.walletAddressEl.textContent = connected
+                ? (addressLabel || this.shortAccount(this.walletAddress))
+                : 'Xaman Disconnected';
+        }
+        if (this.walletBalanceChip) this.walletBalanceChip.hidden = !connected;
+        if (this.btnDisconnect) this.btnDisconnect.hidden = !connected;
+        if (this.btnConnect) {
+            if (connected) {
+                this.btnConnect.innerHTML = "<i class='fa-solid fa-check'></i> Xaman Linked";
+                this.btnConnect.classList.replace('btn-primary', 'btn-danger');
+                this.btnConnect.style.opacity = '0.75';
+                this.btnConnect.disabled = true;
+                this.btnConnect.title = 'Disconnect first to link another wallet';
+            } else {
+                this.btnConnect.innerHTML = "<i class='fa-solid fa-qrcode'></i> Connect Xaman";
+                this.btnConnect.classList.remove('btn-danger');
+                this.btnConnect.classList.add('btn-primary');
+                this.btnConnect.style.opacity = '1';
+                this.btnConnect.disabled = false;
+                this.btnConnect.title = '';
+            }
+        }
     }
 
     connectWallet() {
         if (this.isConnected) return;
         if (window.retroAudio) window.retroAudio.playClick();
         this.openTermsModal();
+    }
+
+    /**
+     * Sign out of Xaman / clear the sim wallet so another account can be linked.
+     * Blocked while a live run is in progress (stake already paid).
+     */
+    async disconnectWallet() {
+        if (!this.isConnected) return;
+        if (this.gameActive || this.liveRun) {
+            this.log('Finish or settle the current run before disconnecting the wallet.', 'alert');
+            try { window.alert('Finish or settle the current run before disconnecting.'); } catch (_) {}
+            return;
+        }
+        if (window.retroAudio) window.retroAudio.playClick();
+
+        if (this.isLiveMode() && window.xrplLive) {
+            try { await window.xrplLive.logout(); } catch (_) { /* still clear local UI */ }
+        } else {
+            try { localStorage.removeItem('leakrunner_xaman_addr'); } catch (_) {}
+        }
+
+        this.isConnected = false;
+        this.walletAddress = null;
+        this.xrpBalance = 0;
+        this.activeHeroId = null;
+        this.hasSessionKeys = false;
+        this.liveRun = null;
+        this._liveEvents = [];
+
+        this.setWalletChrome({ connected: false });
+        this.renderBalance();
+        if (this.valHeroNft) this.valHeroNft.textContent = 'None';
+        if (this.btnStartRun) {
+            this.btnStartRun.disabled = true;
+            this.btnStartRun.innerHTML = `<i class="fa-solid fa-bolt"></i> Stake ${XRPL.ENTRY_STAKE} XRP · Boot Node`;
+            this.btnStartRun.className = 'btn btn-success';
+        }
+        if (this.btnSessionKeys) this.btnSessionKeys.disabled = true;
+        if (this.btnClaimExit) this.btnClaimExit.disabled = true;
+        this.refreshScoreUI();
+        this.log('Wallet disconnected. Connect Xaman again to link another account.', 'system');
     }
 
     performXamanConnect() {
@@ -1091,18 +1214,11 @@ class Web3Simulator {
                 this.log(`Xaman linked · on-ledger best score ${this.formatScoreDisplay(best)} pts loaded.`, 'event');
             }
             
-            if (this.indicatorEl) this.indicatorEl.className = "status-indicator connected";
-            if (this.walletAddressEl) this.walletAddressEl.textContent = this.walletAddress;
-            if (this.btnConnect) {
-                this.btnConnect.innerHTML = "<i class='fa-solid fa-check'></i> Xaman Linked";
-                this.btnConnect.classList.replace('btn-primary', 'btn-danger');
-                this.btnConnect.style.opacity = "0.75";
-            }
-            
-            if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
+            this.setWalletChrome({ connected: true, addressLabel: this.walletAddress });
+            this.renderBalance();
             if (this.valHeroNft) this.valHeroNft.textContent = this.activeHeroId;
             if (this.valHeroClass) this.valHeroClass.textContent = this.activeHeroSkin;
-            
+
             this.btnStartRun.disabled = false;
             this.btnSessionKeys.disabled = false;
 
@@ -1110,7 +1226,7 @@ class Web3Simulator {
             this.log(`XRPL balance: ${this.xrpBalance.toFixed(6)} XRP`, 'system');
             this.log(`Node NFT detected (XLS-20): ${this.activeHeroId}`, 'event');
             this.log("Tip: open a Payment Channel so drop rewards settle without signing every harvest.", 'zk');
-            
+
             this.inventory = [];
         }, 1000);
     }
@@ -1180,14 +1296,7 @@ class Web3Simulator {
         this.walletAddress = account;
         this.activeHeroId = '#' + account.slice(-3).toUpperCase();
 
-        if (this.indicatorEl) this.indicatorEl.className = 'status-indicator connected';
-        if (this.walletAddressEl) this.walletAddressEl.textContent = this.shortAccount(account);
-        if (this.btnConnect) {
-            this.btnConnect.innerHTML = "<i class='fa-solid fa-check'></i> Xaman Linked";
-            this.btnConnect.classList.replace('btn-primary', 'btn-danger');
-            this.btnConnect.style.opacity = '0.75';
-            this.btnConnect.disabled = true;
-        }
+        this.setWalletChrome({ connected: true, addressLabel: this.shortAccount(account) });
         if (this.valHeroNft) this.valHeroNft.textContent = this.activeHeroId;
         if (this.valHeroClass) this.valHeroClass.textContent = this.activeHeroSkin;
         if (this.btnStartRun) this.btnStartRun.disabled = false;
@@ -1214,7 +1323,7 @@ class Web3Simulator {
                     this.log(`Ledger balance: ${this.xrpBalance.toFixed(6)} XRP · ${window.xrplLive.networkLabel()}`, 'system');
                 }
             }
-            if (this.valXrpBalance) this.valXrpBalance.textContent = this.xrpBalance.toFixed(6);
+            this.renderBalance();
         } catch (e) {
             this.log(`Balance lookup failed: ${e?.message || e}`, 'alert');
         }
@@ -1275,12 +1384,23 @@ class Web3Simulator {
 
     /** Live stake: intent → Xaman sign → on-ledger verify → boot run. */
     async liveInsertCoin() {
-        if (!this.isConnected || this.gameActive) return;
+        if (!this.isConnected) {
+            try { window.alert('Connect Xaman first.'); } catch (_) {}
+            return;
+        }
+        if (this.gameActive) {
+            try { window.alert('A run is already active — Claim & Exit or finish it first.'); } catch (_) {}
+            return;
+        }
         const live = window.xrplLive;
+        // Refresh ledger balance before the gate (UI can be stale after reconnect)
+        await this.refreshLiveBalance({ announce: false });
         // A Payment can never dip the sender below the 1 XRP base reserve
         const needed = XRPL.ENTRY_STAKE + 1.01;
         if (this.xrpBalance < needed) {
-            this.log(`Need ≥ ${needed.toFixed(2)} XRP (stake ${XRPL.ENTRY_STAKE} + 1 XRP base reserve). Balance: ${this.xrpBalance.toFixed(4)}.`, 'alert');
+            const msg = `Need ≥ ${needed.toFixed(2)} XRP on this Testnet account (stake ${XRPL.ENTRY_STAKE} + ~1 XRP base reserve).\n\nYour balance: ${this.xrpBalance.toFixed(4)} XRP.\n\n1) Open https://xrpl.org/resources/dev-tools/xrp-faucets\n2) Network: Testnet\n3) Paste YOUR Xaman r-address (the one linked in the header)\n4) Generate XRP a couple of times\n5) Come back, Ctrl+F5, press Stake again.`;
+            this.log(msg.replace(/\n+/g, ' '), 'alert');
+            try { window.alert(msg); } catch (_) { /* headless */ }
             return;
         }
         if (window.retroAudio) window.retroAudio.playClick();
@@ -1607,6 +1727,18 @@ class Web3Simulator {
     }
 
     insertCoinTransaction() {
+        // Recover a stuck "gameActive" flag if the engine never actually started
+        if (this.gameActive && window.gameEngine && !window.gameEngine.isActive) {
+            this.gameActive = false;
+            this.liveRun = null;
+            if (this.btnStartRun) this.btnStartRun.disabled = false;
+        }
+
+        // Demo Mode overrides live rails — turn it off to stake real/testnet XRP
+        if (this.isBypassMode && this.isLiveMode()) {
+            this.log('Demo Mode ON — starting a local run (no XRP). Turn Demo OFF to stake live.', 'system');
+        }
+
         const bootRun = (funded) => {
             this.ensureEpoch();
             this.sessionXrpEarned = 0;
@@ -1840,18 +1972,15 @@ class Web3Simulator {
         const modal = document.getElementById('gameover-modal');
         if (modal) modal.style.display = 'none';
         this.hideAttractScreen(true);
-        this.btnConnect.innerHTML = "<i class='fa-solid fa-qrcode'></i> Mint Node · Xaman";
-        this.btnConnect.classList.replace('btn-danger', 'btn-primary');
-        this.btnConnect.style.opacity = "1";
-        this.btnConnect.disabled = false;
         this.isConnected = false;
-        this.walletAddressEl.textContent = "Xaman Disconnected";
-        document.querySelector('.status-indicator').className = "status-indicator disconnected";
+        this.walletAddress = null;
+        this.xrpBalance = 0;
+        this.setWalletChrome({ connected: false });
+        this.renderBalance();
         this.btnStartRun.innerHTML = `<i class="fa-solid fa-bolt"></i> Stake ${XRPL.ENTRY_STAKE} XRP · Boot Node`;
         this.btnStartRun.className = "btn btn-success";
         this.btnStartRun.disabled = true;
         this.btnSessionKeys.disabled = true;
-        this.valXrpBalance.textContent = "0.000000";
         this.refreshScoreUI();
     }
 

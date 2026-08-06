@@ -65,9 +65,13 @@
 
         ensurePkce() {
             if (this.pkce) return this.pkce;
+            // Stable redirect (no query/hash) so it matches Origins registered
+            // at apps.xaman.dev — prefer opening the game as http://localhost:8765
+            // (also register http://127.0.0.1:8765 if you use that host).
+            const redirectUrl = `${window.location.origin}${window.location.pathname || '/'}`;
             this.pkce = new window.XummPkce(this.cfg.xamanApiKey, {
                 implicit: true,
-                redirectUrl: window.location.href
+                redirectUrl
             });
             return this.pkce;
         }

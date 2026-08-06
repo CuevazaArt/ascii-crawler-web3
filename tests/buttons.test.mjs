@@ -84,6 +84,33 @@ test('Connect Xaman opens ToS; Decline cancels; Accept connects wallet', async (
     assert.equal(sim.isConnected, true);
     assert.match(document.getElementById('btn-connect').textContent, /Xaman Linked/i);
     assert.equal(document.getElementById('btn-start-run').disabled, false);
+    assert.equal(document.getElementById('btn-disconnect').hidden, false);
+    assert.equal(document.getElementById('wallet-balance-chip').hidden, false);
+});
+
+test('Disconnect clears wallet; balance eye toggles visibility', async () => {
+    const { window, document } = loadApp();
+    const sim = window.web3Simulator;
+
+    document.getElementById('btn-connect').click();
+    document.getElementById('chk-tos-agree').checked = true;
+    document.getElementById('chk-tos-agree').dispatchEvent(new window.Event('change', { bubbles: true }));
+    document.getElementById('btn-tos-accept').click();
+    await sleep(1100);
+
+    assert.equal(sim.isConnected, true);
+    document.getElementById('btn-disconnect').click();
+    await sleep(50);
+    assert.equal(sim.isConnected, false);
+    assert.equal(document.getElementById('btn-disconnect').hidden, true);
+    assert.match(document.getElementById('btn-connect').textContent, /Connect Xaman/i);
+
+    const bal = document.getElementById('val-xrp-balance');
+    assert.equal(bal.dataset.visible, '1');
+    document.getElementById('btn-toggle-balance-side').click();
+    assert.equal(bal.dataset.visible, '0');
+    document.getElementById('btn-toggle-balance-side').click();
+    assert.equal(bal.dataset.visible, '1');
 });
 
 test('Demo Mode enables Demo Boot and starts a run', async () => {
