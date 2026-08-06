@@ -18,7 +18,9 @@
 window.XRPL_LIVE_CONFIG = {
     mode: 'sim',
     network: 'testnet',
-    xamanApiKey: '',
+    // Publishable identifier of the "Leak Runner" Xaman app (safe to commit;
+    // PKCE security comes from the origins registered at apps.xaman.dev)
+    xamanApiKey: '9965ff73-7744-4f00-a05f-aa8b3d40397e',
     operatorAddress: '',
     apiBase: '',
     networks: {
