@@ -2,11 +2,36 @@ import xrpl from 'xrpl';
 
 const RIPPLE_EPOCH_MS = 946684800000; // 2000-01-01T00:00:00Z
 
+/**
+ * Accept either a classic family seed (`s...` / `sEd...`) or Xaman
+ * Secret Numbers (8 groups of 6 digits, e.g. "399150 474506 ...").
+ */
+export function walletFromOperatorSecret(secret) {
+    const raw = String(secret || '').trim();
+    if (!raw) throw new Error('XRPL_OPERATOR_SEED is empty');
+
+    // Xaman Secret Numbers: eight whitespace-separated 6-digit groups
+    const groups = raw.split(/[\s,]+/).filter(Boolean);
+    if (groups.length === 8 && groups.every((g) => /^\d{6}$/.test(g))) {
+        return xrpl.walletFromSecretNumbers(groups.join(' '));
+    }
+
+    // Classic / ed25519 family seed
+    if (/^s[1-9A-HJ-NP-Za-km-z]+$/.test(raw)) {
+        return xrpl.Wallet.fromSeed(raw);
+    }
+
+    throw new Error(
+        'XRPL_OPERATOR_SEED must be a family seed (s...) or Xaman Secret Numbers (8×6 digits). '
+        + 'You pasted something else (often the r-address).'
+    );
+}
+
 export class XrplService {
     constructor({ wss, seed, network }) {
         this.wss = wss;
         this.network = network;
-        this.wallet = xrpl.Wallet.fromSeed(seed);
+        this.wallet = walletFromOperatorSecret(seed);
         this.client = null;
         this._connecting = null;
         this._sendChain = Promise.resolve();
